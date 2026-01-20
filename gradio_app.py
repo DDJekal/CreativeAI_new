@@ -7,6 +7,9 @@ Minimale Version: Nur API-Calls zum Backend, keine eigene Logik!
 import gradio as gr
 import httpx
 import os
+import base64
+from io import BytesIO
+from PIL import Image
 from dotenv import load_dotenv
 from src.config.font_library import FONT_LIBRARY
 
@@ -17,6 +20,35 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 # Font-Liste aus Font Library
 FONT_CHOICES = [font.name for font in FONT_LIBRARY]
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def base64_to_pil_image(base64_string: str) -> Image.Image:
+    """
+    Konvertiert einen Base64-String in ein PIL Image.
+    
+    Args:
+        base64_string: Base64-kodiertes Bild (kann mit oder ohne data:image/jpeg;base64, Prefix sein)
+        
+    Returns:
+        PIL Image Objekt
+    """
+    try:
+        # Entferne "data:image/jpeg;base64," Prefix falls vorhanden
+        if ',' in base64_string:
+            base64_string = base64_string.split(',', 1)[1]
+        
+        # Dekodiere Base64
+        image_data = base64.b64decode(base64_string)
+        
+        # Konvertiere zu PIL Image
+        image = Image.open(BytesIO(image_data))
+        return image
+    except Exception as e:
+        print(f"[ERROR] Base64 zu PIL Konvertierung fehlgeschlagen: {e}", flush=True)
+        raise
 
 # ============================================================================
 # API CALLS
@@ -215,12 +247,16 @@ def generate_from_campaign_full(
             
             if data.get('success'):
                 print(f"[DEBUG] Creatives Count: {len(data.get('creatives', []))}", flush=True)
-                image_paths = []
+                images = []
                 for i, creative in enumerate(data['creatives']):
                     # Prüfe zuerst Base64, dann fallback zu lokalem Pfad
                     if 'image_base64' in creative and creative['image_base64']:
-                        print(f"[DEBUG] Creative {i+1}: Base64 data received", flush=True)
-                        image_paths.append(creative['image_base64'])
+                        print(f"[DEBUG] Creative {i+1}: Converting Base64 to PIL Image", flush=True)
+                        try:
+                            pil_image = base64_to_pil_image(creative['image_base64'])
+                            images.append(pil_image)
+                        except Exception as e:
+                            print(f"[ERROR] Creative {i+1}: Base64 conversion failed: {e}", flush=True)
                     elif 'image_url' in creative and creative['image_url']:
                         # Fallback: Versuche lokalen Pfad (für lokale Dev-Umgebung)
                         filename = creative['image_url'].split('/')[-1]
@@ -228,17 +264,17 @@ def generate_from_campaign_full(
                         print(f"[DEBUG] Creative {i+1}: {filename}, exists: {os.path.exists(path)}", flush=True)
                         
                         if os.path.exists(path):
-                            image_paths.append(path)
+                            images.append(path)
                         else:
                             print(f"[WARN] Bild nicht gefunden: {path}", flush=True)
                     else:
                         print(f"[WARN] Creative {i+1}: Keine Bilddaten", flush=True)
                 
-                if not image_paths:
+                if not images:
                     print(f"[ERROR] Keine Bilder gefunden trotz {len(data['creatives'])} Creatives in Response", flush=True)
                     raise gr.Error("Keine Bilder generiert")
                 
-                print(f"[OK] {len(image_paths)} Creatives generiert", flush=True)
+                print(f"[OK] {len(images)} Creatives generiert", flush=True)
                 print(f"[INFO] Research-Source: {data.get('research_summary', {}).get('source', 'N/A')}", flush=True)
                 print(f"[INFO] CI-Primärfarbe: {data.get('ci_data', {}).get('primary', 'N/A')}", flush=True)
                 
@@ -250,8 +286,8 @@ def generate_from_campaign_full(
                 current_results = [None] * 6
                 
                 # Zeige jedes Creative einzeln mit kurzer Verzögerung (animierter Effekt)
-                for i in range(min(len(image_paths), 6)):
-                    current_results[i] = image_paths[i]
+                for i in range(min(len(images), 6)):
+                    current_results[i] = images[i]
                     # Yield progressiv für Live-Updates im UI
                     yield tuple(current_results)
                     time.sleep(0.3)  # 300ms Pause für visuellen Effekt
@@ -264,7 +300,7 @@ def generate_from_campaign_full(
                 global _current_images
                 _current_images = current_results.copy()
                 
-                print(f"[OK] {len(image_paths)} Creatives progressiv angezeigt", flush=True)
+                print(f"[OK] {len(images)} Creatives progressiv angezeigt", flush=True)
                 yield tuple(current_results)
             else:
                 error_msg = data.get('error_message', 'Unbekannter Fehler')
@@ -372,12 +408,17 @@ def regenerate_creative_by_index(
             if data.get('success') and data.get('creative'):
                 creative = data['creative']
                 
+                new_image = None
                 # Prüfe zuerst Base64, dann fallback zu lokalem Pfad
                 if 'image_base64' in creative and creative['image_base64']:
-                    print(f"[REGENERATE] Base64 data received", flush=True)
-                    new_image = creative['image_base64']
+                    print(f"[REGENERATE] Converting Base64 to PIL Image", flush=True)
+                    try:
+                        new_image = base64_to_pil_image(creative['image_base64'])
+                    except Exception as e:
+                        print(f"[ERROR] Base64 conversion failed: {e}", flush=True)
+                        raise gr.Error(f"Fehler beim Konvertieren des Bildes: {e}")
                 elif 'image_url' in creative and creative['image_url']:
-                    # Fallback: Lokaler Pfad
+                    # Fallback: Lokaler Pfad (für lokale Dev)
                     filename = creative['image_url'].split('/')[-1]
                     new_path = f"output/nano_banana/{filename}"
                     
@@ -387,6 +428,9 @@ def regenerate_creative_by_index(
                         raise gr.Error(f"Bild nicht gefunden: {new_path}")
                 else:
                     raise gr.Error("Keine Bilddaten in Response")
+                
+                if not new_image:
+                    raise gr.Error("Fehler beim Laden des regenerierten Bildes")
                 
                 config = creative.get('config', {})
                 print(f"[REGENERATE] Success! New config: {config}", flush=True)
