@@ -1,0 +1,38 @@
+web:
+  - type: web
+    name: creativeai2-backend
+    env: python
+    region: frankfurt
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: HIRINGS_API_URL
+        sync: false
+      - key: HIRINGS_API_TOKEN
+        sync: false
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: FIRECRAWL_API_KEY
+        sync: false
+
+  - type: web
+    name: creativeai2-frontend
+    env: python
+    region: frankfurt
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python gradio_app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: BACKEND_URL
+        value: https://creativeai2-backend.onrender.com

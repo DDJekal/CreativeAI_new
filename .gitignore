@@ -47,6 +47,9 @@ venv.bak/
 Thumbs.db
 desktop.ini
 
+# Frontend Node Modules (zu groß für GitHub)
+frontend/node_modules/
+
 # Output Files
 output/nano_banana/*.jpg
 output/nano_banana/*.png

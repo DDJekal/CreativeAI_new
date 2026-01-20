@@ -858,14 +858,17 @@ if __name__ == "__main__":
     print("CreativeAI Gradio Frontend")
     print("=" * 70)
     print(f"Backend: {BACKEND_URL}")
-    print("Frontend: http://localhost:7870")
+    
+    # Port aus Environment Variable oder Standard
+    port = int(os.getenv("PORT", 7870))
+    print(f"Frontend: Port {port}")
     print("=" * 70)
     print("Authentifizierung aktiviert")
     print("=" * 70)
     
     app.launch(
         server_name="0.0.0.0",
-        server_port=7870,
+        server_port=port,
         share=False,
         theme=gr.themes.Soft(),
         auth=("CreativeOfficeIT", "HighOfficeIT2025!"),
