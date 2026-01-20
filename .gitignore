@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Output Files
+output/nano_banana/*.jpg
+output/nano_banana/*.png
+output/creatives/*.jpg
+output/creatives/*.png
+output/campaigns/
+output/style_test/
+output/limited_test/
+output/videos/
+
+# Keep structure but ignore images
+!output/nano_banana/.gitkeep
+!output/creatives/.gitkeep
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Cache
+.cache/
+.pytest_cache/
+.mypy_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Models & Data
+*.pt
+*.pth
+*.onnx
+*.h5
+models/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+.~*
+
+# Plans (optional)
+.cursor/plans/

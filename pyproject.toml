@@ -1,0 +1,128 @@
+[project]
+name = "creativeai2"
+version = "0.1.0"
+description = "Vollautomatische Creative-Generierung für Recruiting-Kampagnen"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Your Name", email = "your@email.com" }
+]
+
+# Core Dependencies
+dependencies = [
+    # API & HTTP
+    "httpx>=0.27.0",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+    
+    # Web Scraping
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.0.0",
+    
+    # Image Processing
+    "pillow>=10.0.0",
+    "opencv-python>=4.8.0",
+    
+    # OCR
+    "pytesseract>=0.3.10",
+    
+    # AI/ML APIs
+    "openai>=1.10.0",
+    
+    # Async & Performance
+    "aiohttp>=3.9.0",
+    
+    # Data & Math
+    "numpy>=1.24.0",
+    "scikit-learn>=1.3.0",
+    
+    # Color Processing
+    "colormath>=3.0.0",
+    
+    # Database
+    "pymongo>=4.6.0",
+    "redis>=5.0.0",
+    
+    # Web Framework (API)
+    "fastapi>=0.108.0",
+    "uvicorn[standard]>=0.25.0",
+    
+    # Logging
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+# Development Dependencies
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.12.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+    "ipython>=8.12.0",
+]
+
+# Minimal für Testing
+test = [
+    "httpx>=0.27.0",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/CreativeAI2"
+Documentation = "https://github.com/your-org/CreativeAI2/docs"
+Repository = "https://github.com/your-org/CreativeAI2"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.12.0",
+    "ruff>=0.1.0",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
