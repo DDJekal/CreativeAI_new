@@ -217,14 +217,22 @@ def generate_from_campaign_full(
                 print(f"[DEBUG] Creatives Count: {len(data.get('creatives', []))}", flush=True)
                 image_paths = []
                 for i, creative in enumerate(data['creatives']):
-                    filename = creative['image_url'].split('/')[-1]
-                    path = f"output/nano_banana/{filename}"
-                    print(f"[DEBUG] Creative {i+1}: {filename}, exists: {os.path.exists(path)}", flush=True)
-                    
-                    if os.path.exists(path):
-                        image_paths.append(path)
+                    # Prüfe zuerst Base64, dann fallback zu lokalem Pfad
+                    if 'image_base64' in creative and creative['image_base64']:
+                        print(f"[DEBUG] Creative {i+1}: Base64 data received", flush=True)
+                        image_paths.append(creative['image_base64'])
+                    elif 'image_url' in creative and creative['image_url']:
+                        # Fallback: Versuche lokalen Pfad (für lokale Dev-Umgebung)
+                        filename = creative['image_url'].split('/')[-1]
+                        path = f"output/nano_banana/{filename}"
+                        print(f"[DEBUG] Creative {i+1}: {filename}, exists: {os.path.exists(path)}", flush=True)
+                        
+                        if os.path.exists(path):
+                            image_paths.append(path)
+                        else:
+                            print(f"[WARN] Bild nicht gefunden: {path}", flush=True)
                     else:
-                        print(f"[WARN] Bild nicht gefunden: {path}", flush=True)
+                        print(f"[WARN] Creative {i+1}: Keine Bilddaten", flush=True)
                 
                 if not image_paths:
                     print(f"[ERROR] Keine Bilder gefunden trotz {len(data['creatives'])} Creatives in Response", flush=True)
@@ -363,29 +371,40 @@ def regenerate_creative_by_index(
             data = response.json()
             if data.get('success') and data.get('creative'):
                 creative = data['creative']
-                filename = creative['image_url'].split('/')[-1]
-                new_path = f"output/nano_banana/{filename}"
                 
-                if os.path.exists(new_path):
-                    config = creative.get('config', {})
-                    print(f"[REGENERATE] Success! New config: {config}", flush=True)
+                # Prüfe zuerst Base64, dann fallback zu lokalem Pfad
+                if 'image_base64' in creative and creative['image_base64']:
+                    print(f"[REGENERATE] Base64 data received", flush=True)
+                    new_image = creative['image_base64']
+                elif 'image_url' in creative and creative['image_url']:
+                    # Fallback: Lokaler Pfad
+                    filename = creative['image_url'].split('/')[-1]
+                    new_path = f"output/nano_banana/{filename}"
                     
-                    # Aktualisiere das spezifische Bild in der globalen Liste
-                    global _current_images
-                    _current_images[creative_index - 1] = new_path
-                    
-                    # Gebe alle 6 Bilder zurück (mit dem aktualisierten)
-                    return tuple(_current_images) + (
-                        gr.Markdown(
-                            f"✅ Creative {creative_index} neu generiert!\n"
-                            f"Motiv: {config.get('content_type', 'N/A')}, "
-                            f"Layout: {config.get('layout', 'N/A')}, "
-                            f"Text-Stil: {config.get('text_style', 'N/A')}",
-                            visible=True
-                        ),
-                    )
+                    if os.path.exists(new_path):
+                        new_image = new_path
+                    else:
+                        raise gr.Error(f"Bild nicht gefunden: {new_path}")
                 else:
-                    raise gr.Error(f"Bild nicht gefunden: {new_path}")
+                    raise gr.Error("Keine Bilddaten in Response")
+                
+                config = creative.get('config', {})
+                print(f"[REGENERATE] Success! New config: {config}", flush=True)
+                
+                # Aktualisiere das spezifische Bild in der globalen Liste
+                global _current_images
+                _current_images[creative_index - 1] = new_image
+                
+                # Gebe alle 6 Bilder zurück (mit dem aktualisierten)
+                return tuple(_current_images) + (
+                    gr.Markdown(
+                        f"✅ Creative {creative_index} neu generiert!\n"
+                        f"Motiv: {config.get('content_type', 'N/A')}, "
+                        f"Layout: {config.get('layout', 'N/A')}, "
+                        f"Text-Stil: {config.get('text_style', 'N/A')}",
+                        visible=True
+                    ),
+                )
             else:
                 raise gr.Error(data.get('error_message', 'Generierung fehlgeschlagen'))
         else:

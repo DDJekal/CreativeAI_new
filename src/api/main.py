@@ -24,6 +24,7 @@ import os
 import logging
 import random
 import asyncio
+import base64
 
 from src.services.nano_banana_service import NanoBananaService, LayoutStyle, VisualStyle
 from src.services.visual_brief_service import VisualBriefService
@@ -72,6 +73,7 @@ class GenerationResponse(BaseModel):
     success: bool
     image_path: Optional[str] = None
     image_url: Optional[str] = None
+    image_base64: Optional[str] = None  # Base64-kodiertes Bild für Cross-Server-Deployment
     error_message: Optional[str] = None
     persona_name: Optional[str] = None
     is_artistic: bool = False
@@ -145,6 +147,29 @@ class GenerateMotifRequest(BaseModel):
     customer_id: str
     campaign_id: str
     num_motifs: int = 4
+
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+def encode_image_to_base64(image_path: str) -> Optional[str]:
+    """
+    Kodiert ein Bild als Base64-String für Cross-Server-Transfer
+    
+    Args:
+        image_path: Pfad zum Bild
+        
+    Returns:
+        Base64-kodierter String oder None bei Fehler
+    """
+    try:
+        with open(image_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+            return f"data:image/jpeg;base64,{encoded_string}"
+    except Exception as e:
+        logger.error(f"Failed to encode image {image_path}: {e}")
+        return None
 
 
 class GenerateWithMotifRequest(BaseModel):
@@ -1075,11 +1100,16 @@ async def generate_campaign_full(request: CampaignGenerateRequest):
                 
                 if result.success:
                     image_filename = Path(result.image_path).name
+                    
+                    # Encode image as Base64 for cross-server deployment
+                    image_base64 = encode_image_to_base64(result.image_path)
+                    
                     logger.info(f"    ✓ Creative {creative_id} generated")
                     return GenerationResponse(
                         success=True,
                         image_path=result.image_path,
                         image_url=f"/images/{image_filename}",
+                        image_base64=image_base64,
                         persona_name=f"Persona {persona_idx+1}",
                         is_artistic=(config["style"] == "artistic")
                     )
@@ -2276,6 +2306,10 @@ async def regenerate_single_creative(request: dict):
         
         if result.success:
             image_filename = Path(result.image_path).name
+            
+            # Encode image as Base64 for cross-server deployment
+            image_base64 = encode_image_to_base64(result.image_path)
+            
             logger.info(f"✓ Creative regenerated: {image_filename}")
             logger.info(f"  Motiv: {content_type}, Layout: {layout_position.name}, Text: {text_rendering_style.name}")
             
@@ -2284,6 +2318,7 @@ async def regenerate_single_creative(request: dict):
                 "creative": {
                     "image_url": f"/images/{image_filename}",
                     "image_path": result.image_path,
+                    "image_base64": image_base64,
                     "creative_index": creative_index,
                     "config": {
                         "content_type": content_type,
