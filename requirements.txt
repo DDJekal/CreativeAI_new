@@ -38,6 +38,10 @@ redis>=5.0.0
 # Web Framework (für API)
 fastapi>=0.108.0
 uvicorn>=0.25.0
+python-multipart>=0.0.6
+
+# Frontend UI
+gradio>=4.0.0
 
 # Logging & Monitoring
 structlog>=24.1.0
