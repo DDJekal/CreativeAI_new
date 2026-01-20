@@ -77,12 +77,12 @@ logs/
 # Jupyter
 .ipynb_checkpoints/
 
-# Models & Data
+# Models & Data (ML models, not Python packages!)
 *.pt
 *.pth
 *.onnx
 *.h5
-models/
+# Note: src/models/ is a Python package and should NOT be ignored
 
 # Temporary files
 *.tmp
