@@ -808,22 +808,16 @@ with gr.Blocks(title="CreativeAI - Recruiting Generator") as app:
         with gr.Column(scale=1):
             gr.Markdown("### Kunden")
             
-            # Lade Kunden beim Start (nur erste 50 für Performance)
-            initial_customers = get_customers(limit=50)
+            # Lade ALLE Kunden beim Start
+            initial_customers = get_customers(limit=None)
             
             customer_dropdown = gr.Dropdown(
                 choices=initial_customers,
                 value=initial_customers[0] if initial_customers and initial_customers[0] != "API-Fehler" else None,
                 label="Kunde",
-                info="Erste 50 Kunden (Suche mit Tippen)",
+                info="Alle Kunden (durchsuchbar)",
                 allow_custom_value=True,
                 filterable=True
-            )
-            
-            load_all_customers_btn = gr.Button(
-                "📋 Alle Kunden laden", 
-                variant="secondary",
-                size="sm"
             )
             
             gr.Markdown("### Kampagne")
@@ -944,13 +938,6 @@ with gr.Blocks(title="CreativeAI - Recruiting Generator") as app:
     # ====================================================================
     # EVENT HANDLERS
     # ====================================================================
-    
-    # Alle Kunden laden Button
-    load_all_customers_btn.click(
-        fn=lambda: gr.Dropdown(choices=get_customers(limit=None)),
-        inputs=[],
-        outputs=[customer_dropdown]
-    )
     
     # CI-Extraktion Event Handler (2-Schritt-Prozess)
     # Schritt 1: Website finden
