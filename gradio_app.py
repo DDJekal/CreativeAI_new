@@ -54,28 +54,44 @@ def base64_to_pil_image(base64_string: str) -> Image.Image:
 # API CALLS
 # ============================================================================
 
-def get_customers(limit: int = 50):
+def get_customers(limit: int = None):
     """
-    Hole Kundenliste von Backend mit Limit für Performance
+    Hole Kundenliste von Backend
     
     Args:
-        limit: Maximale Anzahl Kunden (Standard: 50)
+        limit: Maximale Anzahl Kunden (None = alle)
     """
     try:
+        # Nur limit-Parameter senden wenn gesetzt
+        params = {}
+        if limit is not None and limit > 0:
+            params["limit"] = limit
+        
+        print(f"[INFO] Lade Kunden... (limit={limit})", flush=True)
+        
         response = httpx.get(
             f"{BACKEND_URL}/api/hirings/customers",
-            params={"limit": limit},
-            timeout=10.0
+            params=params if params else None,
+            timeout=60.0  # Erhöhtes Timeout für alle Kunden
         )
+        
         if response.status_code == 200:
             customers = response.json()
             # Format: "Name (ID: 123)" damit ID später extrahiert werden kann
             result = [f"{c['name']} (ID: {c['id']})" for c in customers]
-            print(f"[INFO] Geladen: {len(result)} Kunden")
+            print(f"[INFO] Geladen: {len(result)} Kunden", flush=True)
             return result
-        return ["API-Fehler"]
+        else:
+            print(f"[ERROR] API Status: {response.status_code}", flush=True)
+            return ["API-Fehler"]
+    except httpx.TimeoutException:
+        print(f"[ERROR] Timeout beim Laden der Kunden", flush=True)
+        return ["API-Fehler - Timeout"]
+    except httpx.ConnectError:
+        print(f"[ERROR] Backend nicht erreichbar", flush=True)
+        return ["API-Fehler - Verbindung"]
     except Exception as e:
-        print(f"[ERROR] Kunden laden: {e}")
+        print(f"[ERROR] Kunden laden: {e}", flush=True)
         return ["API-Fehler"]
 
 
