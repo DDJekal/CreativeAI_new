@@ -439,8 +439,9 @@ def regenerate_creative_by_index(
                 global _current_images
                 _current_images[creative_index - 1] = new_image
                 
-                # Gebe alle 6 Bilder zurück (mit dem aktualisierten)
-                return tuple(_current_images) + (
+                # Gebe NUR das aktualisierte Bild + Status zurück
+                return (
+                    new_image,  # Das regenerierte Creative
                     gr.Markdown(
                         f"✅ Creative {creative_index} neu generiert!\n"
                         f"Motiv: {config.get('content_type', 'N/A')}, "
@@ -867,37 +868,37 @@ with gr.Blocks(title="CreativeAI - Recruiting Generator") as app:
     regenerate_btn_1.click(
         fn=lambda *args: regenerate_creative_by_index(1, *args),
         inputs=common_inputs,
-        outputs=[creative_1, creative_2, creative_3, creative_4, creative_5, creative_6, regenerate_status]
+        outputs=[creative_1, regenerate_status]  # Nur Creative 1 updaten!
     )
     
     regenerate_btn_2.click(
         fn=lambda *args: regenerate_creative_by_index(2, *args),
         inputs=common_inputs,
-        outputs=[creative_1, creative_2, creative_3, creative_4, creative_5, creative_6, regenerate_status]
+        outputs=[creative_2, regenerate_status]  # Nur Creative 2 updaten!
     )
     
     regenerate_btn_3.click(
         fn=lambda *args: regenerate_creative_by_index(3, *args),
         inputs=common_inputs,
-        outputs=[creative_1, creative_2, creative_3, creative_4, creative_5, creative_6, regenerate_status]
+        outputs=[creative_3, regenerate_status]  # Nur Creative 3 updaten!
     )
     
     regenerate_btn_4.click(
         fn=lambda *args: regenerate_creative_by_index(4, *args),
         inputs=common_inputs,
-        outputs=[creative_1, creative_2, creative_3, creative_4, creative_5, creative_6, regenerate_status]
+        outputs=[creative_4, regenerate_status]  # Nur Creative 4 updaten!
     )
     
     regenerate_btn_5.click(
         fn=lambda *args: regenerate_creative_by_index(5, *args),
         inputs=common_inputs,
-        outputs=[creative_1, creative_2, creative_3, creative_4, creative_5, creative_6, regenerate_status]
+        outputs=[creative_5, regenerate_status]  # Nur Creative 5 updaten!
     )
     
     regenerate_btn_6.click(
         fn=lambda *args: regenerate_creative_by_index(6, *args),
         inputs=common_inputs,
-        outputs=[creative_1, creative_2, creative_3, creative_4, creative_5, creative_6, regenerate_status]
+        outputs=[creative_6, regenerate_status]  # Nur Creative 6 updaten!
     )
         
     
