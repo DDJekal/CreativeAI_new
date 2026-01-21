@@ -2060,6 +2060,49 @@ async def extract_ci_auto(request: dict):
         }
 
 
+@app.post("/api/find-website")
+async def find_website(request: dict):
+    """
+    Findet nur die Website für einen Firmennamen (ohne CI-Extraktion)
+    
+    Args:
+        request: {"company_name": "Firma ABC"}
+        
+    Returns:
+        {"success": bool, "website": str, "message": str (optional)}
+    """
+    try:
+        company_name = request.get("company_name", "").strip()
+        if not company_name:
+            raise HTTPException(status_code=400, detail="company_name erforderlich")
+        
+        logger.info(f"Searching website for: {company_name}")
+        
+        # Nutze ResearchService für Website-Suche
+        research_service = ResearchService()
+        website_url = await research_service.find_company_website(company_name)
+        
+        if website_url:
+            logger.info(f"✅ Found website: {website_url}")
+            return {
+                "success": True,
+                "website": website_url
+            }
+        else:
+            logger.warning(f"⚠️ No website found for: {company_name}")
+            return {
+                "success": False,
+                "website": "",
+                "message": f"Keine Website gefunden für '{company_name}'"
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Website search failed for {request.get('company_name', 'unknown')}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/regenerate-single-creative")
 async def regenerate_single_creative(request: dict):
     """

@@ -675,6 +675,120 @@ def extract_ci_from_website(website_url: str):
         raise gr.Error(f"Fehler bei CI-Extraktion: {str(e)}")
 
 
+def find_website_for_customer(customer_name: str):
+    """
+    Findet die Website für einen Kunden (Schritt 1 der CI-Extraktion)
+    
+    Args:
+        customer_name: Name des Kunden im Format "Name (ID: 123)"
+        
+    Returns:
+        tuple: (website_url, status_message)
+    """
+    if not customer_name or customer_name == "API-Fehler":
+        return "", "⚠️ Bitte zuerst einen Kunden auswählen"
+    
+    try:
+        # Extrahiere reinen Firmennamen aus "Name (ID: 123)"
+        company_name = customer_name.split(" (ID:")[0].strip()
+        
+        print(f"[INFO] Suche Website für: {company_name}", flush=True)
+        
+        # API-Call zum Backend für Website-Suche
+        response = httpx.post(
+            f"{BACKEND_URL}/api/find-website",
+            json={"company_name": company_name},
+            timeout=30.0
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            website = data.get("website", "")
+            
+            if website:
+                print(f"[INFO] Website gefunden: {website}", flush=True)
+                return website, f"✅ Website gefunden: {website}"
+            else:
+                message = data.get("message", f"Keine Website gefunden für '{company_name}'")
+                print(f"[WARNING] {message}", flush=True)
+                return "", f"⚠️ {message}"
+        else:
+            error_msg = response.json().get("detail", "Unbekannter Fehler")
+            return "", f"❌ Fehler: {error_msg}"
+            
+    except httpx.TimeoutException:
+        return "", "⏱️ Timeout - Backend antwortet nicht"
+    except httpx.ConnectError:
+        return "", "🔌 Verbindungsfehler: Backend nicht erreichbar"
+    except Exception as e:
+        print(f"[ERROR] Website-Suche: {e}", flush=True)
+        return "", f"❌ Fehler: {str(e)}"
+
+
+def extract_ci_from_website_url(website_url: str):
+    """
+    Extrahiert CI von einer gegebenen Website-URL (Schritt 2 der CI-Extraktion)
+    
+    Args:
+        website_url: Die URL der Website
+        
+    Returns:
+        tuple: (primary, secondary, accent, background, font, status)
+    """
+    if not website_url:
+        return "#2B5A8E", "#C8D9E8", "#FF6B2C", "#FFFFFF", "Roboto", "⚠️ Bitte zuerst Website-URL eingeben"
+    
+    # Stelle sicher, dass URL mit http:// oder https:// beginnt
+    if not website_url.startswith(('http://', 'https://')):
+        website_url = 'https://' + website_url
+    
+    try:
+        print(f"[INFO] Extrahiere CI von: {website_url}", flush=True)
+        
+        # API-Call zum Backend für CI-Extraktion
+        response = httpx.post(
+            f"{BACKEND_URL}/api/extract-ci",
+            params={"website_url": website_url},
+            timeout=30.0
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            colors = data.get("brand_colors", {})
+            font = data.get("font_family", "Roboto")
+            
+            primary = colors.get("primary", "#2B5A8E")
+            secondary = colors.get("secondary", "#C8D9E8")
+            accent = colors.get("accent", "#FF6B2C")
+            background = colors.get("background", "#FFFFFF")
+            
+            print(f"[INFO] CI erfolgreich extrahiert: P={primary}, S={secondary}, A={accent}, F={font}", flush=True)
+            
+            return (
+                primary,
+                secondary,
+                accent,
+                background,
+                font,
+                f"✅ CI erfolgreich extrahiert von {website_url}"
+            )
+        else:
+            error_msg = response.json().get("detail", "Unbekannter Fehler")
+            print(f"[ERROR] CI-Extraktion fehlgeschlagen: {error_msg}", flush=True)
+            return (
+                "#2B5A8E", "#C8D9E8", "#FF6B2C", "#FFFFFF", "Roboto",
+                f"❌ Fehler: {error_msg}"
+            )
+            
+    except httpx.TimeoutException:
+        return "#2B5A8E", "#C8D9E8", "#FF6B2C", "#FFFFFF", "Roboto", "⏱️ Timeout - CI-Extraktion dauerte zu lange"
+    except httpx.ConnectError:
+        return "#2B5A8E", "#C8D9E8", "#FF6B2C", "#FFFFFF", "Roboto", "🔌 Verbindungsfehler: Backend nicht erreichbar"
+    except Exception as e:
+        print(f"[ERROR] CI-Extraktion: {e}", flush=True)
+        return "#2B5A8E", "#C8D9E8", "#FF6B2C", "#FFFFFF", "Roboto", f"❌ Fehler: {str(e)}"
+
+
 # ============================================================================
 # GRADIO INTERFACE
 # ============================================================================
@@ -720,15 +834,28 @@ with gr.Blocks(title="CreativeAI - Recruiting Generator") as app:
                 info="Lädt automatisch"
             )
             
-            gr.Markdown("### CI Extrahieren Button")
+            gr.Markdown("### CI Extrahieren (2 Schritte)")
             
-            extract_ci_btn = gr.Button(
-                "🔍 CI Extrahieren", 
-                variant="primary", 
-                size="lg"
+            with gr.Row():
+                find_website_btn = gr.Button(
+                    "🔍 Website finden", 
+                    variant="secondary", 
+                    scale=1
+                )
+                extract_ci_btn = gr.Button(
+                    "🎨 CI extrahieren", 
+                    variant="primary", 
+                    scale=1
+                )
+            
+            website_url_input = gr.Textbox(
+                label="Website URL",
+                placeholder="https://www.firma-xyz.de",
+                info="Wird automatisch gefunden, kann aber angepasst werden",
+                interactive=True
             )
             
-            ci_status = gr.Markdown("ℹ️ Klicke auf 'CI Extrahieren'", visible=True)
+            ci_status = gr.Markdown("ℹ️ 1. Website finden, 2. CI extrahieren", visible=True)
             
             # 4 Farbfelder untereinander
             primary_color = gr.ColorPicker(
@@ -825,10 +952,18 @@ with gr.Blocks(title="CreativeAI - Recruiting Generator") as app:
         outputs=[customer_dropdown]
     )
     
-    # CI-Extraktion Event Handler (automatisch mit Firmenname)
-    extract_ci_btn.click(
-        fn=extract_ci_from_customer,
+    # CI-Extraktion Event Handler (2-Schritt-Prozess)
+    # Schritt 1: Website finden
+    find_website_btn.click(
+        fn=find_website_for_customer,
         inputs=[customer_dropdown],
+        outputs=[website_url_input, ci_status]
+    )
+    
+    # Schritt 2: CI extrahieren
+    extract_ci_btn.click(
+        fn=extract_ci_from_website_url,
+        inputs=[website_url_input],
         outputs=[primary_color, secondary_color, accent_color, background_color, font_dropdown, ci_status]
     )
     
