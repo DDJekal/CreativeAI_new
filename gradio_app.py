@@ -1300,7 +1300,7 @@ if __name__ == "__main__":
     # #endregion
     
     # #region agent log - Test different launch configs for Render
-    # Hypothesis F, H, J: Try with root_path for Render proxy
+    # Hypothesis K, L, M, N, O: Remove root_path and add request logging
     is_render = os.getenv("RENDER") == "true"
     launch_config = {
         "server_name": "0.0.0.0",
@@ -1310,18 +1310,36 @@ if __name__ == "__main__":
         "auth_message": "Bitte mit Ihren Zugangsdaten anmelden"
     }
     
-    # Add Render-specific configuration
-    if is_render:
-        _debug_log("gradio_app.py:1298", "Applying Render-specific config", {
-            "adding_root_path": True,
-            "root_path_value": "/"
-        }, "F_H_J")
-        launch_config["root_path"] = "/"
-    
-    _debug_log("gradio_app.py:1305", "Final launch config", {
+    _debug_log("gradio_app.py:1305", "Launch config WITHOUT root_path", {
         "config_keys": list(launch_config.keys()),
-        "is_render": is_render
-    }, "F_H_J")
+        "is_render": is_render,
+        "hypothesis": "K_L_M - root_path may cause Invalid URL in Svelte frontend"
+    }, "K_L_M")
+    # #endregion
+    
+    # #region agent log - Add request logging middleware
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request
+    
+    class RequestLoggingMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            _debug_log("gradio_app.py:1322", "Incoming request", {
+                "method": request.method,
+                "url": str(request.url),
+                "path": request.url.path,
+                "headers_host": request.headers.get("host"),
+                "headers_origin": request.headers.get("origin"),
+                "query_params": dict(request.query_params)
+            }, "N_O")
+            response = await call_next(request)
+            _debug_log("gradio_app.py:1331", "Response sent", {
+                "status_code": response.status_code,
+                "path": request.url.path
+            }, "N_O")
+            return response
+    
+    # Add middleware to app before launch
+    app.app.add_middleware(RequestLoggingMiddleware)
     # #endregion
     
     app.launch(**launch_config)
