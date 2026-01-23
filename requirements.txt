@@ -42,8 +42,9 @@ uvicorn>=0.25.0
 python-multipart>=0.0.6
 
 # Frontend UI
-gradio==5.7.0
-huggingface-hub<1.0  # Pin to older version for Gradio 5.7.0 compatibility
+gradio==4.44.0
+gradio-client==1.3.0  # Pin to avoid conflicts
+huggingface-hub<1.0  # Pin to older version for Gradio compatibility
 
 # Logging & Monitoring
 structlog>=24.1.0
