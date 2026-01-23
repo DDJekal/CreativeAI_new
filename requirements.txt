@@ -19,8 +19,7 @@ pytesseract>=0.3.10
 # AI APIs
 openai>=1.10.0
 anthropic>=0.39.0
-# google-genai temporarily disabled due to websockets conflict with gradio
-# google-genai==0.1.0
+google-genai>=0.2.0  # Re-enabled: compatible with Gradio 5.49.1 (websockets 15.0)
 
 # Async & Performance
 aiohttp>=3.9.0
