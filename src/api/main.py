@@ -120,6 +120,9 @@ class CampaignGenerateRequest(BaseModel):
     # Optional: CI-Farben vom Frontend (wenn bereits extrahiert)
     ci_colors: Optional[dict] = None  # {primary, secondary, accent, background}
     font_family: Optional[str] = None
+    # Optional: Override Kampagnendaten (für manuelle Bearbeitung)
+    override_location: Optional[str] = None
+    override_job_title: Optional[str] = None
 
 
 class PersonaData(BaseModel):
@@ -278,6 +281,41 @@ async def get_campaigns(customer_id: str):
     except Exception as e:
         logger.error(f"Error loading campaigns for customer {customer_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Fehler beim Laden der Kampagnen: {str(e)}")
+
+
+@app.get("/api/hirings/campaigns/{campaign_id}")
+async def get_campaign_details(campaign_id: int, customer_id: int):
+    """
+    Lädt Details einer einzelnen Kampagne aus der Hirings API
+    
+    Args:
+        campaign_id: ID der Kampagne
+        customer_id: ID des Kunden (wird für API-Call benötigt)
+        
+    Returns:
+        Campaign details mit job_title, location, company_name, etc.
+    """
+    try:
+        client = HOCAPIClient()
+        campaign_data = await client.get_campaign_input_data(
+            customer_id=customer_id,
+            campaign_id=campaign_id
+        )
+        
+        # Konvertiere zu Frontend-freundlichem Format
+        return {
+            "id": campaign_id,
+            "job_title": campaign_data.job_title or "Nicht angegeben",
+            "location": campaign_data.location or "Nicht angegeben",
+            "company_name": campaign_data.company_name or "Nicht angegeben",
+            "headline": campaign_data.headline,
+            "benefits": campaign_data.benefits,
+            "conditions": campaign_data.conditions,
+            "company_website": campaign_data.company_website
+        }
+    except Exception as e:
+        logger.error(f"Error loading campaign {campaign_id} details: {e}")
+        raise HTTPException(status_code=500, detail=f"Fehler beim Laden der Kampagnendetails: {str(e)}")
 
 
 @app.get("/api/styles")
@@ -655,10 +693,17 @@ async def generate_campaign_full(request: CampaignGenerateRequest):
             campaign_id=int(request.campaign_id)
         )
         
-        job_title_raw = campaign_data.job_title or "Mitarbeiter"
+        # Apply overrides if provided (BEFORE normalization!)
+        job_title_raw = request.override_job_title or campaign_data.job_title or "Mitarbeiter"
         company_name = campaign_data.company_name or "Unser Unternehmen"
-        location = campaign_data.location or "Deutschland"
+        location = request.override_location or campaign_data.location or "Deutschland"
         website_url = campaign_data.company_website
+        
+        # Log overrides if used
+        if request.override_job_title:
+            logger.info(f"  [OVERRIDE] Job Title: {request.override_job_title}")
+        if request.override_location:
+            logger.info(f"  [OVERRIDE] Location: {request.override_location}")
         
         # ============================================
         # PHASE 0.5: Stellentitel-Normalisierung (NEU!)
@@ -1632,41 +1677,6 @@ async def upload_motif(
         raise HTTPException(status_code=500, detail=f"Upload fehlgeschlagen: {str(e)}")
 
 
-@app.get("/api/motifs/{motif_id}/thumbnail")
-async def get_motif_thumbnail(motif_id: str):
-    """
-    Liefert Thumbnail eines Motivs
-    
-    Args:
-        motif_id: Motiv-ID
-    
-    Returns:
-        Bild-Datei (400x400px)
-    """
-    try:
-        motif_lib = get_motif_library()
-        motif = motif_lib.get_by_id(motif_id)
-        
-        if not motif:
-            raise HTTPException(status_code=404, detail="Motif not found")
-        
-        thumbnail_path = Path(motif["thumbnail_path"])
-        if not thumbnail_path.exists():
-            # Fallback auf Vollbild
-            thumbnail_path = Path(motif["file_path"])
-        
-        if not thumbnail_path.exists():
-            raise HTTPException(status_code=404, detail="Motif file not found")
-        
-        return FileResponse(thumbnail_path, media_type="image/png")
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error serving thumbnail {motif_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/api/motifs/{motif_id}/full")
 async def get_motif_full(motif_id: str):
     """
@@ -2386,6 +2396,387 @@ async def regenerate_single_creative(request: dict):
             "success": False,
             "error_message": str(e)
         }
+
+
+# ============================================================================
+# CREATOR MODE ENDPOINTS
+# ============================================================================
+
+@app.post("/api/creator-mode/generate-texts")
+async def generate_texts_creator_mode(request: dict):
+    """
+    Generiert 4 Text-Varianten für Creator Mode
+    
+    Body:
+        customer_id: str
+        campaign_id: str
+        
+    Returns:
+        4 Text-Varianten (Professional, Emotional, Provocative, Benefit-Focused)
+    """
+    try:
+        customer_id = int(request.get("customer_id"))
+        campaign_id = int(request.get("campaign_id"))
+        
+        logger.info(f"🎨 Creator Mode: Generating 4 text variants for campaign {campaign_id}")
+        
+        # 1. Hole Kampagnendaten
+        hoc_client = HOCAPIClient()
+        campaign_data = await hoc_client.get_campaign_input_data(customer_id, campaign_id)
+        
+        # 2. Research (wie im Haupt-Pipeline)
+        research_service = ResearchService()
+        research_results = await research_service.research_company(
+            company_name=campaign_data.company_name,
+            job_titles=campaign_data.job_titles,
+            location=campaign_data.location
+        )
+        
+        # 3. Generiere 4 verschiedene Copywriting-Varianten
+        copywriting = MultiPromptCopywritingPipeline()
+        
+        styles = ["professional", "emotional", "provocative", "benefit_focused"]
+        variants = []
+        
+        for i, style in enumerate(styles, 1):
+            logger.info(f"   Generating variant {i}/4: {style}")
+            
+            from src.services.research_service import TargetGroupInsights, BestPractices
+            
+            mock_research = ResearchResult(
+                job_category="pflege",
+                target_group=TargetGroupInsights(
+                    motivations=["Sicherheit", "Entwicklung", "Work-Life-Balance"],
+                    pain_points=["Stress", "Überlastung", "Planungsunsicherheit"],
+                    expectations=["Verlässliche Dienste", "Qualität", "Entwicklung"]
+                ),
+                best_practices=BestPractices(
+                    headline_examples=["Beispiel 1", "Beispiel 2"],
+                    tone_recommendations=["professional", "empathetic"],
+                    messaging_focus=["Benefits", "Stabilität"]
+                ),
+                market_context=research_results.summary if hasattr(research_results, 'summary') else ""
+            )
+            
+            pipeline_results = await copywriting.generate(
+                job_title=campaign_data.job_titles[0] if campaign_data.job_titles else "Mitarbeiter",
+                company_name=campaign_data.company_name,
+                location=campaign_data.location,
+                research_insights=mock_research,
+                num_variants=1
+            )
+            
+            if pipeline_results and len(pipeline_results) > 0:
+                variant = pipeline_results[0]
+                
+                variants.append({
+                    "variant_name": style.replace("_", " ").title(),
+                    "style": style,
+                    "headline": variant.headline,
+                    "subline": variant.subline,
+                    "benefits": variant.benefits[:4],
+                    "cta": variant.cta
+                })
+        
+        logger.info(f"✅ Creator Mode: 4 text variants generated")
+        
+        return {
+            "success": True,
+            "variants": variants,
+            "job_title": campaign_data.job_titles[0] if campaign_data.job_titles else "",
+            "company_name": campaign_data.company_name,
+            "location": campaign_data.location
+        }
+        
+    except Exception as e:
+        logger.error(f"Creator Mode text generation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/creator-mode/generate-motifs-from-texts")
+async def generate_motifs_from_texts(request: dict):
+    """
+    Generiert 4 Motive basierend auf 4 Text-Varianten
+    
+    Body:
+        variants: List[dict] - 4 Text-Varianten mit headline, subline, benefits
+        job_title: str
+        
+    Returns:
+        4 Motiv-IDs die in der Library gespeichert wurden
+    """
+    try:
+        variants = request.get("variants", [])
+        job_title = request.get("job_title", "")
+        company_name = request.get("company_name", "")
+        
+        if len(variants) != 4:
+            raise HTTPException(status_code=400, detail="Exactly 4 variants required")
+        
+        logger.info(f"🎨 Creator Mode: Generating 4 motifs from text variants")
+        
+        # Services initialisieren
+        visual_brief_service = VisualBriefService()
+        nano = NanoBananaService()
+        motif_lib = get_motif_library()
+        
+        motif_ids = []
+        
+        for i, variant in enumerate(variants, 1):
+            logger.info(f"   Motif {i}/4: {variant.get('style', 'unknown')}")
+            
+            # 1. Erstelle Visual Concept
+            visual_concept = await visual_brief_service.create_visual_concept_from_text(
+                headline=variant.get("headline", ""),
+                subline=variant.get("subline", ""),
+                benefits=variant.get("benefits", []),
+                job_title=job_title
+            )
+            
+            # 2. Generiere Motiv (T2I, OHNE Text)
+            result = await nano.generate_motif_only(
+                scene_prompt=visual_concept.get("scene_description", ""),
+                style_prompt=visual_concept.get("style_direction", ""),
+                job_title=job_title,
+                model="fast"
+            )
+            
+            if result.success and result.image_path:
+                # 3. Zu Library hinzufügen
+                motif_entry = motif_lib.add_generated_motif(
+                    image_path=result.image_path,
+                    company_name=company_name,
+                    job_title=job_title,
+                    style=variant.get("style", ""),
+                    metadata={
+                        "source": "creator_mode",
+                        "variant_name": variant.get("variant_name", ""),
+                        "headline": variant.get("headline", "")[:50]
+                    }
+                )
+                
+                motif_ids.append(motif_entry["id"])
+                logger.info(f"   ✅ Motif {i} added: {motif_entry['id']}")
+            else:
+                logger.error(f"   ✗ Motif {i} generation failed")
+                raise HTTPException(status_code=500, detail=f"Motif {i} generation failed")
+        
+        logger.info(f"✅ Creator Mode: 4 motifs generated and added to library")
+        
+        return {
+            "success": True,
+            "motif_ids": motif_ids,
+            "count": len(motif_ids)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Creator Mode motif generation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/creator-mode/generate-creatives")
+async def generate_creatives_creator_mode(request: dict):
+    """
+    Generiert 4 Creatives mit Text-Varianten + optionalen Motiven
+    
+    Body:
+        variants: List[dict] - 4 Text-Varianten
+        motif_ids: List[str] - 0-4 Motiv-IDs (I2I wenn vorhanden, sonst T2I)
+        ci_colors: dict - CI-Farben
+        font_family: str - Font
+        custom_prompt: str - Optionale Design-Anweisungen
+        job_title: str
+        company_name: str
+        location: str
+        
+    Returns:
+        4 Creatives als Base64
+    """
+    try:
+        variants = request.get("variants", [])
+        motif_ids = request.get("motif_ids", [])
+        ci_colors = request.get("ci_colors", {})
+        font_family = request.get("font_family", "Inter")
+        custom_prompt = request.get("custom_prompt", "")
+        job_title = request.get("job_title", "")
+        company_name = request.get("company_name", "")
+        location = request.get("location", "")
+        
+        if len(variants) != 4:
+            raise HTTPException(status_code=400, detail="Exactly 4 variants required")
+        
+        logger.info(f"🎨 Creator Mode: Generating 4 creatives")
+        logger.info(f"   Motifs provided: {len(motif_ids)}")
+        logger.info(f"   Custom prompt: {bool(custom_prompt)}")
+        
+        # Services
+        nano = NanoBananaService()
+        motif_lib = get_motif_library()
+        visual_brief_service = VisualBriefService()
+        
+        creatives = []
+        
+        for i, variant in enumerate(variants):
+            logger.info(f"   Creative {i+1}/4")
+            
+            # Layout & Style zufällig wählen
+            from src.config.layout_library import get_random_layout
+            from src.config.text_rendering_library import get_random_text_rendering_style
+            
+            layout_position, layout_prompt = get_random_layout()
+            text_rendering_style = get_random_text_rendering_style()
+            
+            # Prüfe ob Motiv vorhanden für I2I
+            use_i2i = i < len(motif_ids)
+            
+            if use_i2i:
+                # I2I: Nutze vorhandenes Motiv
+                motif_entry = motif_lib.get_by_id(motif_ids[i])
+                if not motif_entry:
+                    logger.warning(f"   Motif {motif_ids[i]} not found, using T2I")
+                    use_i2i = False
+            
+            if use_i2i:
+                logger.info(f"   → I2I with motif {motif_ids[i]}")
+                # TODO: I2I Implementation (später)
+                # Für jetzt: T2I Fallback
+                use_i2i = False
+            
+            if not use_i2i:
+                # T2I: Neu generieren
+                logger.info(f"   → T2I (new motif)")
+                
+                # Visual Brief erstellen
+                visual_brief = await visual_brief_service.generate_brief(
+                    headline=variant.get("headline", ""),
+                    style=variant.get("style", "professional"),
+                    subline=variant.get("subline", ""),
+                    benefits=variant.get("benefits", []),
+                    job_title=job_title
+                )
+                
+                result = await nano.generate_creative(
+                    job_title=job_title,
+                    company_name=company_name,
+                    headline=variant.get("headline", ""),
+                    subline=variant.get("subline", ""),
+                    benefits=variant.get("benefits", []),
+                    cta=variant.get("cta", ""),
+                    location=location,
+                    primary_color=ci_colors.get("primary", "#2B5A8E"),
+                    secondary_color=ci_colors.get("secondary", "#C8D9E8"),
+                    accent_color=ci_colors.get("accent", "#FFA726"),
+                    background_color=ci_colors.get("background", "#FFFFFF"),
+                    visual_brief=visual_brief,
+                    layout_style=layout_position.value,
+                    layout_prompt=layout_prompt,
+                    text_rendering_style=text_rendering_style,
+                    model="fast"
+                )
+                
+                if result.success:
+                    creatives.append({
+                        "image_base64": result.image_base64,
+                        "image_url": result.image_path,
+                        "variant_name": variant.get("variant_name", f"Variant {i+1}"),
+                        "config": {
+                            "layout": layout_position.name,
+                            "text_style": text_rendering_style.name,
+                            "generation_type": "I2I" if use_i2i else "T2I"
+                        }
+                    })
+                else:
+                    logger.error(f"   ✗ Creative {i+1} failed: {result.error}")
+                    raise HTTPException(status_code=500, detail=f"Creative {i+1} failed")
+        
+        logger.info(f"✅ Creator Mode: 4 creatives generated")
+        
+        return {
+            "success": True,
+            "creatives": creatives,
+            "count": len(creatives)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Creator Mode creative generation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/motifs/recent")
+async def get_recent_motifs(limit: int = 30):
+    """
+    Holt letzte N Motive aus der Library
+    
+    Query Params:
+        limit: Max. Anzahl (default: 30)
+        
+    Returns:
+        Liste von Motiv-Metadaten (ohne Bild-Daten)
+    """
+    try:
+        motif_lib = get_motif_library()
+        motifs = motif_lib.get_recent_motifs(limit=limit)
+        
+        # Entferne file_path aus Response (Security)
+        safe_motifs = []
+        for m in motifs:
+            safe_m = m.copy()
+            safe_m.pop("file_path", None)
+            safe_m.pop("thumbnail_path", None)
+            safe_motifs.append(safe_m)
+        
+        logger.info(f"✅ Returning {len(safe_motifs)} recent motifs")
+        
+        return {
+            "success": True,
+            "motifs": safe_motifs,
+            "count": len(safe_motifs)
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get recent motifs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/motifs/{motif_id}/thumbnail")
+async def get_motif_thumbnail(motif_id: str):
+    """
+    Holt Thumbnail für ein Motiv als Base64
+    
+    Path Params:
+        motif_id: Motiv-ID
+        
+    Returns:
+        Base64-kodiertes Thumbnail
+    """
+    try:
+        motif_lib = get_motif_library()
+        base64_data = motif_lib.get_thumbnail_base64(motif_id)
+        
+        if not base64_data:
+            raise HTTPException(status_code=404, detail=f"Motif {motif_id} not found")
+        
+        return {
+            "success": True,
+            "motif_id": motif_id,
+            "thumbnail_base64": base64_data
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get motif thumbnail: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================

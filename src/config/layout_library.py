@@ -30,34 +30,6 @@ class LayoutStyle:
 # =============================================================================
 
 LAYOUT_POSITIONS = [
-    # SIDEBAR (2)
-    LayoutPosition(
-        id="sidebar_left_solid",
-        name="Sidebar Links Solid",
-        prompt="""
-Left sidebar layout:
-- Solid color sidebar on left (30% width) using {primary_color}
-- Main content area on right (70% width) with image
-- Text elements (headline, subline, CTA) positioned in sidebar
-- Clean vertical separation line
-- Professional, structured feel
-""",
-        best_for=["hero_shot", "team_shot", "location"]
-    ),
-    LayoutPosition(
-        id="sidebar_right_gradient",
-        name="Sidebar Rechts Gradient",
-        prompt="""
-Right sidebar layout:
-- Gradient sidebar on right (35% width) from {secondary_color} to {accent_color}
-- Main content area on left (65% width) with image
-- Text elements vertically centered in sidebar
-- Soft transition between areas
-- Modern, approachable feel
-""",
-        best_for=["lifestyle", "artistic", "future"]
-    ),
-    
     # OVERLAY (2)
     LayoutPosition(
         id="overlay_bottom_gradient",
@@ -84,64 +56,6 @@ Top banner layout:
 - Bold, attention-grabbing feel
 """,
         best_for=["team_shot", "artistic", "future"]
-    ),
-    
-    # CARD (2)
-    LayoutPosition(
-        id="card_floating_center",
-        name="Floating Card Center",
-        prompt="""
-Centered card layout:
-- Full-width background image
-- Floating card (50% width) centered over image
-- Card background: semi-transparent {background_color} with blur
-- Text elements inside card (headline, subline, CTA)
-- Drop shadow for depth
-- Elegant, focused feel
-""",
-        best_for=["artistic", "lifestyle", "future"]
-    ),
-    LayoutPosition(
-        id="card_floating_bottom_left",
-        name="Floating Card Bottom-Left",
-        prompt="""
-Bottom-left card layout:
-- Full-width background image
-- Card (40% width) positioned bottom-left corner
-- Card background: solid {secondary_color}
-- Text elements inside card with padding
-- Asymmetric, dynamic positioning
-- Contemporary, editorial feel
-""",
-        best_for=["hero_shot", "location", "team_shot"]
-    ),
-    
-    # SPLIT (2)
-    LayoutPosition(
-        id="split_vertical_5050",
-        name="Split Vertical 50/50",
-        prompt="""
-Vertical split layout:
-- Left half (50%): solid {primary_color} background with text
-- Right half (50%): image
-- Clean vertical division line
-- Text elements vertically centered on left
-- Balanced, symmetrical feel
-""",
-        best_for=["team_shot", "hero_shot", "future"]
-    ),
-    LayoutPosition(
-        id="split_horizontal_6040",
-        name="Split Horizontal 60/40",
-        prompt="""
-Horizontal split layout:
-- Top section (60%): image
-- Bottom section (40%): solid {secondary_color} background with text
-- Clean horizontal division
-- Text elements in bottom section with generous padding
-- Stable, grounded feel
-""",
-        best_for=["location", "lifestyle", "artistic"]
     ),
     
     # FULL BLEED (2)
@@ -199,6 +113,96 @@ Corner banner layout:
 - Modern, confident feel
 """,
         best_for=["team_shot", "hero_shot", "location"]
+    ),
+    
+    # NEW: PURE TEXT OVERLAY (6 neue organische Layouts)
+    LayoutPosition(
+        id="pure_text_overlay",
+        name="Pure Text Overlay",
+        prompt="""
+Pure text overlay layout:
+- Vollbild-Motiv fills 100% of canvas
+- Text floats directly on image WITHOUT containers (except CTA button)
+- Keep LEFT 60% CLEAR and UNCLUTTERED for main subject
+- Text positioned on RIGHT 40% with strong drop shadows
+- No background boxes, bars, or geometric shapes
+- Only CTA button has visible background
+- Natural, editorial magazine feel
+""",
+        best_for=["hero_shot", "lifestyle", "location"]
+    ),
+    LayoutPosition(
+        id="corner_minimal",
+        name="Corner Minimal",
+        prompt="""
+Corner minimal layout:
+- Vollbild-Motiv fills 100% of canvas
+- Text concentrated in ONE CORNER (top-left or bottom-right)
+- Keep CENTER and OPPOSITE AREAS (80%+) CLEAR for main subject
+- Minimal text: headline + job title + CTA only
+- Text uses drop shadows, no containers
+- Maximum focus on photography
+- Clean, sophisticated feel
+""",
+        best_for=["hero_shot", "artistic", "lifestyle"]
+    ),
+    LayoutPosition(
+        id="bottom_third_cinematic",
+        name="Bottom Third Cinematic",
+        prompt="""
+Bottom third cinematic layout:
+- Vollbild-Motiv fills 100% of canvas
+- Keep UPPER 66% CLEAR and UNCLUTTERED for main subject
+- Soft gradient overlay in LOWER 33% (transparent to {primary_color})
+- Text positioned over gradient in lower third
+- Classic film/cinema composition style
+- Dramatic, professional feel
+""",
+        best_for=["hero_shot", "location", "team_shot"]
+    ),
+    LayoutPosition(
+        id="side_accent_strip",
+        name="Side Accent Strip",
+        prompt="""
+Side accent strip layout:
+- Vollbild-Motiv fills 85-90% of canvas
+- Narrow vertical strip (10-15% width) on LEFT or RIGHT edge
+- Strip color: {accent_color} or gradient {primary_color} to {accent_color}
+- Text positioned in strip, vertical or rotated
+- Keep MAIN AREA (85%+) CLEAR for subject
+- Modern, editorial magazine style
+""",
+        best_for=["artistic", "lifestyle", "future"]
+    ),
+    LayoutPosition(
+        id="center_hero_minimal",
+        name="Center Hero Minimal",
+        prompt="""
+Center hero minimal layout:
+- Vollbild-Motiv fills 100% of canvas
+- ONLY headline + CTA centered, nothing else
+- No subline, no benefits, minimal text
+- Keep TOP 30% and BOTTOM 30% CLEAR
+- Subject positioned BEHIND centered text
+- Text uses strong drop shadows, no containers
+- Bold, confident, minimalist feel
+""",
+        best_for=["hero_shot", "future", "artistic"]
+    ),
+    LayoutPosition(
+        id="offset_asymmetric",
+        name="Offset Asymmetric",
+        prompt="""
+Offset asymmetric layout:
+- Vollbild-Motiv fills 100% of canvas
+- Text positioned ASYMMETRICALLY (not centered, not edges)
+- Example: Upper-right quadrant OR lower-left quadrant
+- Keep OPPOSITE DIAGONAL (60%+) CLEAR for subject
+- No grid, no alignment rules, natural placement
+- Text floats with drop shadows, no containers
+- Contemporary, dynamic feel
+""",
+        best_for=["lifestyle", "artistic", "team_shot"]
     ),
 ]
 

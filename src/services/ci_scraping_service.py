@@ -130,16 +130,16 @@ class CIScrapingService:
         
         # 5. Farb-Extraktion (CSS + Vision parallel)
         colors_css = self._extract_colors_from_html(scrape_result.get("html", ""))
-        logger.info(f"CSS colors found: {colors_css}")
+        logger.info(f"CSS colors found: {colors_css[:5]}")  # Nur Top 5 loggen
         
-        colors_vision = []
+        colors_vision = {}
         if scrape_result.get("screenshot"):
             try:
                 colors_vision = await self._extract_colors_via_vision(
                     scrape_result["screenshot"],
                     company_name
                 )
-                logger.info(f"Vision colors found: {colors_vision}")
+                logger.info(f"Vision colors: {colors_vision}")
             except Exception as e:
                 logger.warning(f"Vision color extraction failed: {e}")
         
@@ -699,7 +699,7 @@ class CIScrapingService:
         self, 
         screenshot_data: str, 
         company_name: str
-    ) -> List[str]:
+    ) -> dict:
         """
         Nutzt OpenAI Vision für intelligente Farb-Analyse
         
@@ -711,7 +711,8 @@ class CIScrapingService:
             company_name: Firmenname für Kontext
             
         Returns:
-            Liste der erkannten Brand Colors
+            Dictionary mit primary, secondary, accent Farben
+            Format: {"primary": "#XXX", "secondary": "#YYY", "accent": "#ZZZ"}
         """
         image_url = None
         
@@ -737,7 +738,7 @@ class CIScrapingService:
         
         if not image_url:
             logger.warning("No valid image URL for Vision analysis")
-            return []
+            return {}
         
         prompt = f"""Analysiere diesen Screenshot der Homepage von {company_name}.
 
@@ -795,55 +796,111 @@ WICHTIG: Gib IMMER alle 3 Farben an! Wenn du nur eine findest, leite die anderen
         
         result = json.loads(response.choices[0].message.content)
         
-        colors = []
+        # Extrahiere Farben mit expliziten Keys
+        vision_colors = {}
+        
+        # Primary Color (MUSS vorhanden sein)
         if result.get("primary_color"):
-            colors.append(result["primary_color"])
+            primary = result["primary_color"]
+            if re.match(r'^#[0-9A-Fa-f]{6}$', primary):
+                vision_colors["primary"] = primary.upper()
+        
+        # Secondary Color
         if result.get("secondary_color"):
-            colors.append(result["secondary_color"])
+            secondary = result["secondary_color"]
+            if re.match(r'^#[0-9A-Fa-f]{6}$', secondary):
+                vision_colors["secondary"] = secondary.upper()
+        
+        # Accent Color
         if result.get("accent_color"):
-            colors.append(result["accent_color"])
-        # Fallback für alte API-Response
-        colors.extend(result.get("accent_colors", []))
+            accent = result["accent_color"]
+            if re.match(r'^#[0-9A-Fa-f]{6}$', accent):
+                vision_colors["accent"] = accent.upper()
         
-        # Validiere Hex-Format
-        valid_colors = []
-        for c in colors:
-            if c and re.match(r'^#[0-9A-Fa-f]{6}$', c):
-                valid_colors.append(c.upper())
+        logger.info(f"Vision found colors: Primary={vision_colors.get('primary')}, "
+                   f"Secondary={vision_colors.get('secondary')}, Accent={vision_colors.get('accent')}")
         
-        logger.info(f"Vision found {len(valid_colors)} colors: {valid_colors}")
-        
-        return valid_colors
+        return vision_colors
     
-    def _combine_colors(self, css_colors: List[str], vision_colors: List[str]) -> dict:
+    def _combine_colors(self, css_colors: List[str], vision_colors: dict) -> dict:
         """
-        Kombiniert CSS- und Vision-Ergebnisse intelligent und generiert Color Harmony
+        Kombiniert CSS- und Vision-Ergebnisse intelligent
         
-        Vision hat Priorität (intelligentere Erkennung)
+        Vision hat absolute Priorität wenn vollständig.
+        CSS dient als Ergänzung und Fallback.
+        
+        Args:
+            css_colors: Liste von Hex-Farben aus CSS (sortiert nach Score)
+            vision_colors: Dict mit {"primary": "#XXX", "secondary": "#YYY", "accent": "#ZZZ"}
         
         Returns:
             Dict mit primary, secondary, accent
         """
-        # Kombiniere Farben (Vision hat Priorität)
-        combined = []
+        result = {
+            "primary": None,
+            "secondary": None,
+            "accent": None
+        }
         
-        if vision_colors:
-            combined.extend(vision_colors)
+        # 1. VISION HAT ABSOLUTE PRIORITÄT
+        if vision_colors and vision_colors.get("primary"):
+            result["primary"] = vision_colors["primary"]
+            logger.info(f"✓ Primary from Vision: {result['primary']}")
+            
+            # Wenn Vision alle 3 hat → nutze alle
+            if vision_colors.get("secondary"):
+                result["secondary"] = vision_colors["secondary"]
+                logger.info(f"✓ Secondary from Vision: {result['secondary']}")
+            
+            if vision_colors.get("accent"):
+                result["accent"] = vision_colors["accent"]
+                logger.info(f"✓ Accent from Vision: {result['accent']}")
         
-        # Ergänze mit CSS-Farben falls nötig
-        for c in css_colors:
-            if c not in combined:
-                combined.append(c)
+        # 2. CSS ALS FALLBACK FÜR FEHLENDE FARBEN
+        # Filtere CSS-Farben: nur gesättigte Farben (Saturation > 20%)
+        saturated_css = []
+        for color in css_colors:
+            if not self._is_neutral_color(color):
+                sat = self._get_color_saturation(color)
+                if sat > 20:  # Mindest-Sättigung
+                    saturated_css.append(color)
         
-        # Generiere vollständige Palette mit Color Harmony
-        color_palette = self._generate_color_harmony(combined)
+        logger.info(f"Saturated CSS colors (>20%): {saturated_css[:5]}")
+        
+        # Primary fehlt? → Nehme beste CSS-Farbe
+        if not result["primary"]:
+            if saturated_css:
+                result["primary"] = saturated_css[0]
+                logger.info(f"⚠ Primary from CSS (fallback): {result['primary']}")
+            else:
+                # Absoluter Fallback
+                result["primary"] = "#2C5F8D"
+                logger.warning("⚠ Primary from default fallback")
+        
+        # Secondary fehlt? → Generiere aus Primary oder nehme CSS
+        if not result["secondary"]:
+            if len(saturated_css) >= 2 and saturated_css[1] != result["primary"]:
+                result["secondary"] = saturated_css[1]
+                logger.info(f"✓ Secondary from CSS: {result['secondary']}")
+            else:
+                result["secondary"] = self._generate_secondary(result["primary"])
+                logger.info(f"✓ Secondary generated from Primary: {result['secondary']}")
+        
+        # Accent fehlt? → Generiere aus Primary oder nehme CSS
+        if not result["accent"]:
+            if len(saturated_css) >= 3 and saturated_css[2] not in [result["primary"], result["secondary"]]:
+                result["accent"] = saturated_css[2]
+                logger.info(f"✓ Accent from CSS: {result['accent']}")
+            else:
+                result["accent"] = self._generate_accent(result["primary"], "complementary")
+                logger.info(f"✓ Accent generated from Primary: {result['accent']}")
         
         logger.info(f"Final Color Palette:")
-        logger.info(f"  Primary: {color_palette['primary']}")
-        logger.info(f"  Secondary: {color_palette['secondary']}")
-        logger.info(f"  Accent: {color_palette['accent']}")
+        logger.info(f"  Primary: {result['primary']}")
+        logger.info(f"  Secondary: {result['secondary']}")
+        logger.info(f"  Accent: {result['accent']}")
         
-        return color_palette
+        return result
     
     def _extract_font_from_html(self, html: str) -> dict:
         """

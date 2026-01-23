@@ -65,7 +65,14 @@ TEXT LAYOUT: LEFT-ALIGNED
 - Job title: Lower-left area
 - Benefits: Left side, stacked vertically
 - CTA: Bottom-left
-- Right side of image stays CLEAR for the main subject
+- Keep RIGHT 60-70% CLEAR and UNCLUTTERED for the main subject
+
+⚠️ COMPOSITION RULES:
+- Text is an OVERLAY floating on top of the photograph
+- Do NOT create separate areas for text vs. image
+- Keep designated areas CLEAN (no objects/people in text zones)
+- Single unified photograph with text floating above
+- ONE cohesive image, NOT a split composition
 """,
     LayoutStyle.RIGHT: """
 TEXT LAYOUT: RIGHT-ALIGNED
@@ -76,7 +83,14 @@ TEXT LAYOUT: RIGHT-ALIGNED
 - Job title: Lower-right area
 - Benefits: Right side, stacked vertically
 - CTA: Bottom-right
-- Left side of image stays CLEAR for the main subject
+- Keep LEFT 60-70% CLEAR and UNCLUTTERED for the main subject
+
+⚠️ COMPOSITION RULES:
+- Text is an OVERLAY floating on top of the photograph
+- Do NOT create separate areas for text vs. image
+- Keep designated areas CLEAN (no objects/people in text zones)
+- Single unified photograph with text floating above
+- ONE cohesive image, NOT a split composition
 """,
     LayoutStyle.CENTER: """
 TEXT LAYOUT: CENTERED
@@ -88,6 +102,13 @@ TEXT LAYOUT: CENTERED
 - Benefits: Center, stacked vertically
 - CTA: Bottom-center
 - Subject should be behind/around the text
+
+⚠️ COMPOSITION RULES:
+- Text is an OVERLAY floating on top of the photograph
+- Do NOT create separate areas for text vs. image
+- Subject positioned behind centered text elements
+- Single unified photograph with text floating above
+- ONE cohesive image, NOT a split composition
 """,
     LayoutStyle.BOTTOM: """
 TEXT LAYOUT: BOTTOM-FOCUSED
@@ -98,7 +119,14 @@ TEXT LAYOUT: BOTTOM-FOCUSED
 - Job title: Lower third, prominent
 - Benefits: Lower area, horizontal or compact
 - CTA: Bottom center or right
-- Upper 2/3 of image stays CLEAR for subject
+- Keep UPPER 66% CLEAR and UNCLUTTERED for subject
+
+⚠️ COMPOSITION RULES:
+- Text is an OVERLAY floating on top of the photograph
+- Do NOT create separate areas for text vs. image
+- Keep upper areas CLEAN (no objects/people in text zones)
+- Single unified photograph with text floating above
+- ONE cohesive image, NOT a split composition
 """,
     LayoutStyle.SPLIT: """
 TEXT LAYOUT: SPLIT (HERO STYLE)
@@ -109,6 +137,13 @@ TEXT LAYOUT: SPLIT (HERO STYLE)
 - Subline + Benefits: Lower area
 - CTA: Bottom center
 - Creates visual hierarchy with breathing room
+
+⚠️ COMPOSITION RULES:
+- Text is an OVERLAY floating on top of the photograph
+- Do NOT create separate areas for text vs. image
+- Keep middle areas CLEAN for main subject
+- Single unified photograph with text floating above
+- ONE cohesive image, NOT a split composition
 """,
 }
 
@@ -519,6 +554,137 @@ class NanoBananaService:
                 prompt_used=edit_prompt
             )
     
+    async def generate_motif_only(
+        self,
+        scene_prompt: str,
+        style_prompt: str = "",
+        job_title: str = "",
+        seed: Optional[int] = None,
+        model: Optional[Literal["fast", "pro"]] = None,
+        save_to_file: bool = True
+    ) -> NanaBananaResult:
+        """
+        Generiert NUR das Motiv ohne Text-Overlays
+        Für Creator Mode Motiv-Generierung
+        
+        Args:
+            scene_prompt: Szenen-Beschreibung (z.B. aus Visual Brief)
+            style_prompt: Stil-Anweisungen (optional)
+            job_title: Stellentitel für Context (optional)
+            seed: Seed für Reproduzierbarkeit (optional)
+            model: "fast" oder "pro"
+            save_to_file: Bild speichern?
+            
+        Returns:
+            NanaBananaResult mit generiertem Motiv
+        """
+        model_name = self._get_model_name(model)
+        logger.info(f"🎨 Generating MOTIF ONLY with {model_name}")
+        logger.info(f"   Scene: {scene_prompt[:100]}...")
+        
+        # Baue Prompt nur für Motiv (OHNE Text-Overlays)
+        full_prompt = f"""
+# RECRUITING CREATIVE - MOTIF ONLY (No Text Overlays)
+
+You are generating a professional recruiting image motif WITHOUT any text overlays.
+The text will be added later in a separate step.
+
+## Scene Description
+{scene_prompt}
+"""
+        
+        if style_prompt:
+            full_prompt += f"""
+## Visual Style
+{style_prompt}
+"""
+        
+        if job_title:
+            full_prompt += f"""
+## Context
+Job Position: {job_title}
+Target: Professional recruiting creative for German market
+"""
+        
+        full_prompt += """
+
+## Critical Requirements
+✓ NO TEXT of any kind in the image
+✓ NO job titles, NO headlines, NO captions
+✓ Leave space for text overlays (typically left or right third)
+✓ Professional, recruiting-appropriate imagery
+✓ High visual quality, well-composed
+✓ Clear subject, good contrast
+✓ German aesthetic sensibility
+
+Generate a 1024x1024px professional recruiting motif image.
+"""
+        
+        try:
+            logger.debug(f"Full motif prompt:\n{full_prompt}")
+            
+            # Generation Config
+            generation_config = types.GenerateContentConfig(
+                temperature=1.0,
+                top_p=0.95,
+                top_k=20,
+                candidate_count=1,
+                seed=seed,
+                max_output_tokens=8192,
+                response_modalities=["image"]
+            )
+            
+            # API Call
+            response = self.client.models.generate_content(
+                model=model_name,
+                contents=full_prompt,
+                config=generation_config,
+            )
+            
+            # Bild aus Response extrahieren
+            image_base64 = None
+            image_path = None
+            
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    raw_data = part.inline_data.data
+                    
+                    if isinstance(raw_data, bytes):
+                        image_bytes = raw_data
+                        image_base64 = base64.b64encode(raw_data).decode()
+                    else:
+                        image_base64 = raw_data
+                        image_bytes = base64.b64decode(raw_data)
+                    
+                    if save_to_file:
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        filename = f"motif_only_{timestamp}.png"
+                        image_path = str(self.output_dir / filename)
+                        
+                        with open(image_path, "wb") as f:
+                            f.write(image_bytes)
+                        
+                        logger.info(f"✅ Motif saved: {image_path}")
+                    
+                    return NanaBananaResult(
+                        success=True,
+                        image_path=image_path,
+                        image_base64=image_base64,
+                        model_used=model_name,
+                        prompt_used=full_prompt
+                    )
+            
+            raise ValueError("No image in response")
+            
+        except Exception as e:
+            logger.error(f"❌ Motif generation failed: {e}")
+            return NanaBananaResult(
+                success=False,
+                error_message=str(e),
+                model_used=model_name,
+                prompt_used=full_prompt
+            )
+    
     async def generate_creative(
         self,
         job_title: str,
@@ -606,7 +772,14 @@ Das Bild MUSS diese emotionale Richtung unterstützen!
         
         # Kompletter Prompt für Motiv + Text-Overlay
         # IMMER 1:1 Format!
-        prompt = f"""Generate a professional recruiting creative image (SQUARE 1:1 FORMAT).
+        prompt = f"""Generate a professional recruiting creative (1:1 SQUARE FORMAT).
+
+⚠️ CRITICAL: SINGLE UNIFIED IMAGE - NO DUPLICATES!
+- ONE cohesive photograph/illustration
+- ONE main subject (person/scene)
+- Text will be added as FLOATING OVERLAYS on top
+- NO split compositions or duplicate elements
+- NOT a collage - single unified image only
 
 {scene_prompt}
 {visual_brief_section}
@@ -617,7 +790,11 @@ Das Bild MUSS diese emotionale Richtung unterstützen!
 === VISUAL STYLE ===
 {visual_style_prompt}
 
-=== TEXT ELEMENTS TO INCLUDE ===
+=== TEXT OVERLAY INSTRUCTIONS ===
+The following text will float ABOVE the image as overlays:
+- They are NOT part of the photograph itself
+- They do NOT require separate image areas
+- Keep designated zones clean and uncluttered for text
 
 === BRAND COLORS (ALL MUST BE USED HARMONIOUSLY!) ===
 Primary Color: {primary_color} (Main headlines, CTA button background)
@@ -681,6 +858,12 @@ All other text (headline, subline, benefits) must float directly on the image!
 ⚠️ LAYOUT STYLE PRIORITY: The layout style (organic/geometric/wavy/rounded/angular/layered) 
 is a KEY differentiator. Make it OBVIOUS and EXTREME - don't be subtle!
 If style says "wavy", ALL borders must visibly wave. If "angular", NO vertical/horizontal lines!
+
+⚠️ FINAL CHECKLIST - VERIFY BEFORE GENERATING:
+✓ Count: Is there only ONE main subject? (not 2, not 3, just ONE)
+✓ Composition: Is it a single unified scene? (not a split or collage)
+✓ Text areas: Are they CLEAR and UNCLUTTERED? (no people/objects in text zones)
+✓ Duplicates: No duplicate people, objects, or scenes?
 
 The final image should look like a professional Instagram/Social Media recruiting ad."""
 
@@ -919,11 +1102,18 @@ The final image should look like a professional Instagram/Social Media recruitin
         # Job-Title bereinigen
         job_clean = job_title.split('(')[0].strip()
         
-        # Baue den kompletten Szenen-Prompt
+        # Baue den kompletten Szenen-Prompt mit Anti-Dopplung
         return f"""=== SCENE: {scene.name.upper()} ({designer_type.upper()}) ===
 MOTIF STYLE: {scene.name}
 
 {scene.prompt}
+
+⚠️ CRITICAL - SINGLE UNIFIED COMPOSITION:
+- ONE main subject/person only - NO duplicates!
+- Cohesive scene - NOT a split composition
+- If showing people: maximum 1-2 people total
+- NO multiple separate elements or scenes
+- Single photograph/illustration, not a collage
 
 CONTEXT:
 - Role: {job_clean}

@@ -158,6 +158,68 @@ def get_campaigns(customer_name: str):
         return ["API-Fehler"]
 
 
+def load_campaign_details(customer_name: str, campaign_choice: str):
+    """
+    Load campaign details to show in preview and populate edit fields
+    
+    Args:
+        customer_name: "Name (ID: 123)" Format
+        campaign_choice: Campaign selection from dropdown
+        
+    Returns:
+        tuple: (preview_markdown, location, job_title)
+    """
+    if not customer_name or not campaign_choice:
+        return "ℹ️ Wähle eine Kampagne aus", "", ""
+    
+    if customer_name == "API-Fehler" or campaign_choice == "API-Fehler":
+        return "⚠️ Fehler beim Laden", "", ""
+    
+    try:
+        # Extrahiere Customer-ID aus "Name (ID: 123)"
+        if "ID: " not in customer_name:
+            return "⚠️ Ungültiges Kundenformat", "", ""
+        
+        customer_id = int(customer_name.split("ID: ")[1].rstrip(")"))
+        campaign_id = int(extract_campaign_id(campaign_choice))
+        
+        print(f"[INFO] Lade Kampagnendetails für Customer {customer_id}, Campaign {campaign_id}", flush=True)
+        
+        # API-Call zum Backend
+        response = httpx.get(
+            f"{BACKEND_URL}/api/hirings/campaigns/{campaign_id}",
+            params={"customer_id": customer_id},
+            timeout=10.0
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            location = data.get('location', 'Nicht angegeben')
+            job_title = data.get('job_title', 'Nicht angegeben')
+            
+            preview = f"""**Geladene Kampagnendaten:**
+- Standort: `{location}`
+- Stellentitel: `{job_title}`
+"""
+            
+            print(f"[INFO] Kampagnendetails geladen: Location={location}, JobTitle={job_title}", flush=True)
+            return preview, location, job_title
+        else:
+            print(f"[ERROR] API Status: {response.status_code}", flush=True)
+            return "⚠️ Fehler beim Laden", "", ""
+    except httpx.TimeoutException:
+        print(f"[ERROR] Timeout beim Laden der Kampagnendetails", flush=True)
+        return "⚠️ Timeout beim Laden", "", ""
+    except httpx.ConnectError:
+        print(f"[ERROR] Backend nicht erreichbar", flush=True)
+        return "⚠️ Backend nicht erreichbar", "", ""
+    except Exception as e:
+        print(f"[ERROR] Campaign details: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return f"⚠️ Fehler: {str(e)}", "", ""
+
+
 def generate_from_campaign_full(
     customer_name: str, 
     campaign_choice: str,
@@ -165,7 +227,9 @@ def generate_from_campaign_full(
     ci_secondary: str = None,
     ci_accent: str = None,
     ci_background: str = None,
-    font_family: str = None
+    font_family: str = None,
+    override_location: str = None,
+    override_job_title: str = None
 ):
     """
     Generiere 6 Creatives mit kompletter Pipeline
@@ -186,6 +250,8 @@ def generate_from_campaign_full(
         ci_accent: Accent Color (optional)
         ci_background: Background Color (optional)
         font_family: Font Family (optional)
+        override_location: Override für Standort (optional)
+        override_job_title: Override für Stellentitel (optional)
         
     Returns:
         Liste von Bildpfaden
@@ -242,6 +308,14 @@ def generate_from_campaign_full(
         if font_family and font_family.strip():
             payload["font_family"] = font_family
             print(f"[DEBUG] Font Family: {font_family}", flush=True)
+        
+        # Optional: Override-Parameter hinzufügen (nur wenn ausgefüllt)
+        if override_location and override_location.strip():
+            payload["override_location"] = override_location.strip()
+            print(f"[DEBUG] Override Location: {override_location}", flush=True)
+        if override_job_title and override_job_title.strip():
+            payload["override_job_title"] = override_job_title.strip()
+            print(f"[DEBUG] Override Job Title: {override_job_title}", flush=True)
         
         print(f"[DEBUG] Payload: {payload}", flush=True)
         
@@ -844,6 +918,34 @@ with gr.Blocks(title="CreativeAI - Recruiting Generator") as app:
                 info="Lädt automatisch"
             )
             
+            gr.Markdown("### Kampagnendaten")
+            
+            # Preview of loaded data (read-only info)
+            campaign_data_preview = gr.Markdown(
+                "ℹ️ Wähle eine Kampagne aus, um Daten zu sehen",
+                visible=True
+            )
+            
+            # Checkbox to enable editing
+            enable_editing_checkbox = gr.Checkbox(
+                label="Kampagnendaten manuell bearbeiten",
+                value=False,
+                info="Aktivieren um Standort und Stellentitel anzupassen"
+            )
+            
+            # Editable fields (hidden by default)
+            with gr.Group(visible=False) as edit_fields_group:
+                override_location = gr.Textbox(
+                    label="Standort (bearbeitet)",
+                    placeholder="z.B. München, Bayern",
+                    info="Überschreibt den API-Wert"
+                )
+                override_job_title = gr.Textbox(
+                    label="Stellentitel (bearbeitet)", 
+                    placeholder="z.B. Pflegefachkraft (m/w/d)",
+                    info="Überschreibt den API-Wert"
+                )
+            
             gr.Markdown("### CI Extrahieren (2 Schritte)")
             
             with gr.Row():
@@ -977,6 +1079,20 @@ with gr.Blocks(title="CreativeAI - Recruiting Generator") as app:
         outputs=[campaign_dropdown]
     )
     
+    # Kampagnendetails laden wenn Kampagne ausgewählt wird
+    campaign_dropdown.change(
+        fn=load_campaign_details,
+        inputs=[customer_dropdown, campaign_dropdown],
+        outputs=[campaign_data_preview, override_location, override_job_title]
+    )
+    
+    # Toggle edit fields visibility
+    enable_editing_checkbox.change(
+        fn=lambda checked: gr.Group(visible=checked),
+        inputs=[enable_editing_checkbox],
+        outputs=[edit_fields_group]
+    )
+    
     # Kampagnen-Generierung (mit CI-Farben und Font)
     generate_campaign_btn.click(
         fn=generate_from_campaign_full,
@@ -987,7 +1103,9 @@ with gr.Blocks(title="CreativeAI - Recruiting Generator") as app:
             secondary_color, 
             accent_color, 
             background_color,
-            font_dropdown       # Font
+            font_dropdown,      # Font
+            override_location,  # Override-Parameter
+            override_job_title
         ],
         outputs=[creative_1, creative_2, creative_3, creative_4, creative_5, creative_6]
     )
@@ -1072,7 +1190,6 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=port,
         share=False,
-        theme=gr.themes.Soft(),
         auth=("CreativeOfficeIT", "HighOfficeIT2025!"),
         auth_message="Bitte mit Ihren Zugangsdaten anmelden"
     )
