@@ -51,21 +51,41 @@ def _debug_log(location, message, data, hypothesis_id):
     except Exception as e:
         print(f"[DEBUG LOG ERROR] {e}", flush=True)
 
-# Hypothesis A, D: Check Gradio version and package location
-_debug_log("gradio_app.py:30", "Gradio package info", {
-    "gradio_version": gr.__version__,
-    "gradio_file": gr.__file__,
-    "python_version": sys.version,
-    "python_executable": sys.executable
-}, "A_D")
+# Hypothesis A, B: Check Gradio version and Python version
+try:
+    import pkg_resources
+    installed_packages = {pkg.key: pkg.version for pkg in pkg_resources.working_set}
+    _debug_log("gradio_app.py:55", "Gradio package info", {
+        "gradio_version": gr.__version__,
+        "gradio_file": gr.__file__,
+        "python_version": sys.version,
+        "python_executable": sys.executable
+    }, "A_B")
+except Exception as e:
+    _debug_log("gradio_app.py:62", "Package check failed", {"error": str(e)}, "A_B")
 
-# Hypothesis B: Check environment variables
-_debug_log("gradio_app.py:38", "Environment variables", {
+# Hypothesis C, D: Check critical package versions
+try:
+    import pkg_resources
+    critical_packages = ["gradio", "gradio-client", "huggingface-hub", "websockets", "httpx"]
+    versions = {}
+    for pkg in critical_packages:
+        try:
+            versions[pkg] = pkg_resources.get_distribution(pkg).version
+        except:
+            versions[pkg] = "NOT_INSTALLED"
+    
+    _debug_log("gradio_app.py:75", "Critical package versions", versions, "C_D")
+except Exception as e:
+    _debug_log("gradio_app.py:78", "Version check failed", {"error": str(e)}, "C_D")
+
+# Hypothesis E: Check environment variables
+_debug_log("gradio_app.py:82", "Environment variables", {
     "BACKEND_URL": BACKEND_URL,
     "PORT": os.getenv("PORT"),
     "ENV": os.getenv("ENV", "development"),
-    "all_env_keys": list(os.environ.keys())
-}, "B")
+    "RENDER": os.getenv("RENDER", "not_set")
+}, "E")
 # #endregion
 
 # Font-Liste aus Font Library
