@@ -1256,14 +1256,31 @@ if __name__ == "__main__":
     print("Authentifizierung aktiviert")
     print("=" * 70)
     
-    # #region agent log - Pre-launch diagnostics
-    _debug_log("gradio_app.py:1195", "Before app.launch()", {
+    # #region agent log - Pre-launch with Gradio config check
+    _debug_log("gradio_app.py:1260", "Before app.launch() - Config check", {
         "port": port,
         "server_name": "0.0.0.0",
         "backend_url": BACKEND_URL,
         "gradio_app_type": str(type(app)),
-        "gradio_blocks_class": str(app.__class__.__name__)
-    }, "C")
+        "gradio_blocks_class": str(app.__class__.__name__),
+        "gradio_version": gr.__version__,
+        "is_render": os.getenv("RENDER") == "true"
+    }, "F_G")
+    
+    # Hypothesis I: Check if Gradio has static file paths configured
+    try:
+        import gradio
+        static_paths = {}
+        if hasattr(gradio, 'routes'):
+            static_paths['routes_available'] = True
+        if hasattr(app, 'local_url'):
+            static_paths['local_url'] = str(getattr(app, 'local_url', 'N/A'))
+        if hasattr(app, 'share_url'):
+            static_paths['share_url'] = str(getattr(app, 'share_url', 'N/A'))
+        
+        _debug_log("gradio_app.py:1275", "Gradio static path check", static_paths, "I")
+    except Exception as e:
+        _debug_log("gradio_app.py:1278", "Static path check failed", {"error": str(e)}, "I")
     # #endregion
     
     # #region agent log - Test backend connection
@@ -1282,13 +1299,32 @@ if __name__ == "__main__":
         }, "E")
     # #endregion
     
-    app.launch(
-        server_name="0.0.0.0",
-        server_port=port,
-        share=False,
-        auth=("CreativeOfficeIT", "HighOfficeIT2025!"),
-        auth_message="Bitte mit Ihren Zugangsdaten anmelden"
-    )
+    # #region agent log - Test different launch configs for Render
+    # Hypothesis F, H, J: Try with root_path for Render proxy
+    is_render = os.getenv("RENDER") == "true"
+    launch_config = {
+        "server_name": "0.0.0.0",
+        "server_port": port,
+        "share": False,
+        "auth": ("CreativeOfficeIT", "HighOfficeIT2025!"),
+        "auth_message": "Bitte mit Ihren Zugangsdaten anmelden"
+    }
+    
+    # Add Render-specific configuration
+    if is_render:
+        _debug_log("gradio_app.py:1298", "Applying Render-specific config", {
+            "adding_root_path": True,
+            "root_path_value": "/"
+        }, "F_H_J")
+        launch_config["root_path"] = "/"
+    
+    _debug_log("gradio_app.py:1305", "Final launch config", {
+        "config_keys": list(launch_config.keys()),
+        "is_render": is_render
+    }, "F_H_J")
+    # #endregion
+    
+    app.launch(**launch_config)
     
     # #region agent log - Post-launch
     _debug_log("gradio_app.py:1230", "After app.launch()", {
