@@ -8,6 +8,8 @@ import gradio as gr
 import httpx
 import os
 import base64
+import json
+import sys
 from io import BytesIO
 from PIL import Image
 from dotenv import load_dotenv
@@ -17,6 +19,43 @@ load_dotenv()
 
 # Backend URL
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+# #region agent log - Startup Diagnostics
+# Log startup environment for debugging
+def _debug_log(location, message, data, hypothesis_id):
+    """Write debug log to file in NDJSON format"""
+    try:
+        import time
+        log_entry = {
+            "sessionId": "debug-session",
+            "runId": "startup",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000)
+        }
+        with open(r"c:\Users\David Jekal\Desktop\Projekte\CreativeAI2\.cursor\debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+    except Exception as e:
+        print(f"[DEBUG LOG ERROR] {e}", flush=True)
+
+# Hypothesis A, D: Check Gradio version and package location
+_debug_log("gradio_app.py:30", "Gradio package info", {
+    "gradio_version": gr.__version__,
+    "gradio_file": gr.__file__,
+    "python_version": sys.version,
+    "python_executable": sys.executable
+}, "A_D")
+
+# Hypothesis B: Check environment variables
+_debug_log("gradio_app.py:38", "Environment variables", {
+    "BACKEND_URL": BACKEND_URL,
+    "PORT": os.getenv("PORT"),
+    "ENV": os.getenv("ENV", "development"),
+    "all_env_keys": list(os.environ.keys())
+}, "B")
+# #endregion
 
 # Font-Liste aus Font Library
 FONT_CHOICES = [font.name for font in FONT_LIBRARY]
@@ -1186,6 +1225,32 @@ if __name__ == "__main__":
     print("Authentifizierung aktiviert")
     print("=" * 70)
     
+    # #region agent log - Pre-launch diagnostics
+    _debug_log("gradio_app.py:1195", "Before app.launch()", {
+        "port": port,
+        "server_name": "0.0.0.0",
+        "backend_url": BACKEND_URL,
+        "gradio_app_type": str(type(app)),
+        "gradio_blocks_class": str(app.__class__.__name__)
+    }, "C")
+    # #endregion
+    
+    # #region agent log - Test backend connection
+    try:
+        response = httpx.get(f"{BACKEND_URL}/health", timeout=5.0)
+        _debug_log("gradio_app.py:1205", "Backend health check", {
+            "status_code": response.status_code,
+            "response_text": response.text[:200],
+            "backend_reachable": True
+        }, "E")
+    except Exception as e:
+        _debug_log("gradio_app.py:1211", "Backend health check FAILED", {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "backend_reachable": False
+        }, "E")
+    # #endregion
+    
     app.launch(
         server_name="0.0.0.0",
         server_port=port,
@@ -1193,3 +1258,10 @@ if __name__ == "__main__":
         auth=("CreativeOfficeIT", "HighOfficeIT2025!"),
         auth_message="Bitte mit Ihren Zugangsdaten anmelden"
     )
+    
+    # #region agent log - Post-launch
+    _debug_log("gradio_app.py:1230", "After app.launch()", {
+        "launch_completed": True,
+        "message": "app.launch() returned successfully"
+    }, "C")
+    # #endregion
