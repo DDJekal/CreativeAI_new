@@ -210,6 +210,15 @@ async def root():
     }
 
 
+@app.get("/health")
+async def health():
+    """Health Check Endpoint for monitoring"""
+    return {
+        "status": "healthy",
+        "service": "CreativeAI API"
+    }
+
+
 # ============================================================================
 # HIRINGS API INTEGRATION
 # ============================================================================
