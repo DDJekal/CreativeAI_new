@@ -6,7 +6,7 @@
 python-dotenv>=1.0.0
 
 # HTTP & API
-httpx>=0.27.0
+httpx>=0.28.0
 pydantic>=2.5.0
 
 # Image Processing
@@ -19,7 +19,7 @@ pytesseract>=0.3.10
 # AI APIs
 openai>=1.10.0
 anthropic>=0.39.0
-google-genai>=0.2.0
+google-genai==0.2.0
 
 # Async & Performance
 aiohttp>=3.9.0
