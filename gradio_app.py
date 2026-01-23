@@ -1191,5 +1191,8 @@ if __name__ == "__main__":
         server_port=port,
         share=False,
         auth=("CreativeOfficeIT", "HighOfficeIT2025!"),
-        auth_message="Bitte mit Ihren Zugangsdaten anmelden"
+        auth_message="Bitte mit Ihren Zugangsdaten anmelden",
+        show_error=True,
+        favicon_path=None,
+        _frontend_app_name="gradio"
     )
