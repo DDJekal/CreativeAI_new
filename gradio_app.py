@@ -26,6 +26,13 @@ def _debug_log(location, message, data, hypothesis_id):
     """Write debug log to file in NDJSON format"""
     try:
         import time
+        from pathlib import Path
+        
+        # Ensure .cursor directory exists
+        log_dir = Path(__file__).parent / ".cursor"
+        log_dir.mkdir(exist_ok=True)
+        log_file = log_dir / "debug.log"
+        
         log_entry = {
             "sessionId": "debug-session",
             "runId": "startup",
@@ -35,7 +42,11 @@ def _debug_log(location, message, data, hypothesis_id):
             "data": data,
             "timestamp": int(time.time() * 1000)
         }
-        with open(r"c:\Users\David Jekal\Desktop\Projekte\CreativeAI2\.cursor\debug.log", "a", encoding="utf-8") as f:
+        
+        # Also print to stdout for Render logs
+        print(f"[DEBUG {hypothesis_id}] {location}: {message} | {json.dumps(data)}", flush=True)
+        
+        with open(log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(log_entry) + "\n")
     except Exception as e:
         print(f"[DEBUG LOG ERROR] {e}", flush=True)
