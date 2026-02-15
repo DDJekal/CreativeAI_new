@@ -3060,6 +3060,7 @@ async def manus_generate(
         logger.info(f"[2/3] Generiere {len(request.personas)} Creatives (parallel)...")
         
         copywriting_service = CopywritingService()
+        brief_service = VisualBriefService()
         nano = NanoBananaService(default_model="pro")
         
         async def generate_persona_creative(persona: dict, index: int) -> dict:
@@ -3074,60 +3075,66 @@ async def manus_generate(
                 # Extrahiere Daten
                 psychographics = persona.get("psychographics", {})
                 creative_input = persona.get("creative_input", {})
+                demographics = persona.get("demographics", {})
                 
                 motivations = psychographics.get("motivations", [])
                 pain_points = psychographics.get("pain_points", [])
                 core_quote = psychographics.get("core_quote", "")
                 key_message = creative_input.get("key_message_to_resonate", "")
+                visual_keywords = creative_input.get("visual_style_keywords", [])
+                emotional_tone = creative_input.get("emotional_tone", "professional")
                 
-                # Option 1: Nutze key_message direkt als Headline (gibt Manus maximale Kontrolle)
+                # Headline: Nutze key_message direkt (gibt Manus maximale Kontrolle)
                 if key_message:
-                    headline = key_message
-                    # Generiere nur Subline + CTA + Benefits
-                    motivation = motivations[0] if motivations else "Karriereentwicklung"
-                    pain_point = pain_points[0] if pain_points else "Unzufriedenheit"
-                    
-                    # Vereinfachtes Copywriting nur für Subline/CTA/Benefits
-                    text_variant = await copywriting_service._prompt_generate_persona_variant(
-                        persona_index=index + 1,
-                        job_title=request.job_title,
-                        company_name=request.company_name,
-                        location=request.location,
-                        motivation=motivation,
-                        pain_point=pain_point,
-                        emotional_trigger=core_quote,
-                        key_benefit=motivations[1] if len(motivations) > 1 else motivation
-                    )
-                    
-                    # Überschreibe Headline mit key_message
-                    subline = text_variant.subline
-                    cta = text_variant.cta
-                    benefits = text_variant.benefits[:3]  # Max 3 Benefits
+                    # Trenne Headline und Subline wenn beide in key_message sind (durch Punkt oder Zeilenumbruch)
+                    if ". " in key_message:
+                        parts = key_message.split(". ", 1)
+                        headline = parts[0] + "."
+                        subline = parts[1] if len(parts) > 1 else ""
+                    else:
+                        headline = key_message
+                        subline = ""
                 else:
-                    # Option 2: Generiere alle Texte via Copywriting
-                    motivation = motivations[0] if motivations else "Karriereentwicklung"
-                    pain_point = pain_points[0] if pain_points else "Unzufriedenheit"
-                    
-                    text_variant = await copywriting_service._prompt_generate_persona_variant(
-                        persona_index=index + 1,
-                        job_title=request.job_title,
-                        company_name=request.company_name,
-                        location=request.location,
-                        motivation=motivation,
-                        pain_point=pain_point,
-                        emotional_trigger=core_quote,
-                        key_benefit=motivations[1] if len(motivations) > 1 else motivation
-                    )
-                    
-                    headline = text_variant.headline
-                    subline = text_variant.subline
-                    cta = text_variant.cta
-                    benefits = text_variant.benefits[:3]
+                    headline = archetype
+                    subline = ""
                 
-                logger.info(f"    Headline: {headline[:40]}...")
+                # Subline: Nutze core_quote wenn keine Subline vorhanden
+                if not subline and core_quote:
+                    subline = core_quote
                 
-                # VisualBrief direkt aus Manus-Daten (ohne GPT-Call!)
-                visual_brief = _manus_persona_to_visual_brief(persona, headline)
+                # Benefits: Nutze motivations direkt (max 3)
+                benefits = motivations[:3] if motivations else []
+                
+                # CTA: Standard oder aus Manus
+                cta = "Jetzt bewerben"
+                
+                logger.info(f"    Headline: {headline[:50]}...")
+                logger.info(f"    Subline: {subline[:50] if subline else '(keine)'}...")
+                logger.info(f"    Benefits: {len(benefits)}")
+                
+                # VisualBrief über VisualBriefService generieren (wie im erfolgreichen Script)
+                # Erstelle detaillierten Style-String aus Manus-Daten
+                visual_keywords_str = ", ".join(visual_keywords) if visual_keywords else ""
+                
+                style_desc = f"clean modern photography, {emotional_tone}"
+                if visual_keywords_str:
+                    style_desc += f", {visual_keywords_str}"
+                
+                # Füge kontextuelle Details hinzu basierend auf Job
+                job_lower = request.job_title.lower()
+                if "op" in job_lower or "chirurg" in job_lower or "ota" in job_lower:
+                    style_desc += ", professional surgical environment, operating room setting"
+                elif "pflege" in job_lower:
+                    style_desc += ", healthcare professional, caring atmosphere"
+                
+                visual_brief = await brief_service.generate_brief(
+                    headline=headline,
+                    style=f"professional recruitment creative, VISUAL STYLE: {style_desc}",
+                    subline=subline,
+                    benefits=benefits,
+                    job_title=request.job_title,
+                    cta=cta
+                )
                 
                 # Layout & Style für Varianz
                 from src.config.layout_library import get_random_layout
