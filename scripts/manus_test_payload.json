@@ -1,0 +1,135 @@
+{
+  "job_title": "OP-Pflegefachkraft (m/w/d)",
+  "company_name": "Klinikum Beispielstadt",
+  "location": "Beispielstadt",
+  "ci_colors": {
+    "primary": "#2B5A8E",
+    "secondary": "#7BA428",
+    "accent": "#FFA726",
+    "background": "#FFFFFF"
+  },
+  "font_family": "Inter",
+  "personas": [
+    {
+      "id": "persona_sabine_45",
+      "archetype": "Die Erfahrene",
+      "demographics": {
+        "name": "Sabine",
+        "age": 45,
+        "experience_years": 20,
+        "current_status": "Festangestellt (Großklinikum)"
+      },
+      "psychographics": {
+        "primary_driver": "Work-Life-Balance",
+        "pain_points": [
+          "Hohe körperliche Belastung",
+          "Ungeplante Überstunden",
+          "Häufige Nacht- und Wochenenddienste",
+          "Stress durch Notfälle"
+        ],
+        "motivations": [
+          "Geregelte Arbeitszeiten",
+          "Planbarer Feierabend",
+          "Ruhigeres Arbeitsumfeld",
+          "Wertschätzung für Erfahrung"
+        ],
+        "core_quote": "Ich will endlich wieder planbar Feierabend haben."
+      },
+      "narrative": {
+        "title": "Ihre Geschichte",
+        "story": "Nach zwei Jahrzehnten im Großklinikum spürt Sabine jeden Knochen. Die Nachtdienste schlauchen, und wenn am Wochenende wieder das Telefon klingelt, weil jemand ausgefallen ist, möchte sie am liebsten nicht drangehen. Sie liebt ihren Job im OP, aber sie sehnt sich nach einem Leben, in dem der Feierabend auch wirklich Feierabend bedeutet – ohne Notfallpieper."
+      },
+      "creative_input": {
+        "visual_style_keywords": [
+          "erfahren",
+          "kompetent",
+          "leicht erschöpft",
+          "nachdenklich",
+          "professionelle Kleidung",
+          "Krankenhaus-Flur bei Feierabend"
+        ],
+        "emotional_tone": "Sehnsüchtig nach Ruhe, aber professionell",
+        "key_message_to_resonate": "Tausche Stress gegen Planbarkeit. Dein Feierabend gehört wieder dir."
+      }
+    },
+    {
+      "id": "persona_michael_32",
+      "archetype": "Der Springer",
+      "demographics": {
+        "name": "Michael",
+        "age": 32,
+        "experience_years": 5,
+        "current_status": "Leiharbeitnehmer"
+      },
+      "psychographics": {
+        "primary_driver": "Finanzielle Sicherheit & Zugehörigkeit",
+        "pain_points": [
+          "Ständige Reisebereitschaft",
+          "Fehlende soziale Integration im Team",
+          "Berufliche Unsicherheit",
+          "Einsamkeit"
+        ],
+        "motivations": [
+          "Hohes Gehalt",
+          "Festes, kollegiales Team",
+          "Sesshaft werden",
+          "Anerkennung als vollwertiger Mitarbeiter"
+        ],
+        "core_quote": "Geld ist wichtig, aber ein festes Team wäre schön."
+      },
+      "narrative": {
+        "title": "Seine Geschichte",
+        "story": "Michael hat sich für die Leiharbeit entschieden, um schnell Geld für sein Eigenheim zu sparen. Er genießt den Dienstwagen und das übertarifliche Gehalt. Doch langsam macht sich Einsamkeit breit: Er gehört nirgendwo richtig dazu, ist immer nur 'der Neue'. Er würde für das richtige Angebot sesshaft werden – wenn das Team stimmt und er sich nicht finanziell ruinieren muss."
+      },
+      "creative_input": {
+        "visual_style_keywords": [
+          "jung",
+          "dynamisch",
+          "allein im Auto",
+          "professionell",
+          "nachdenklich blickend",
+          "moderner Hintergrund"
+        ],
+        "emotional_tone": "Ambitioniert, aber suchend",
+        "key_message_to_resonate": "Mehr als nur ein Springer. Finde dein berufliches Zuhause."
+      }
+    },
+    {
+      "id": "persona_julia_38",
+      "archetype": "Die Rückkehrerin",
+      "demographics": {
+        "name": "Julia",
+        "age": 38,
+        "experience_years": 12,
+        "current_status": "Wiedereinstieg nach Elternzeit"
+      },
+      "psychographics": {
+        "primary_driver": "Vereinbarkeit von Familie und Beruf",
+        "pain_points": [
+          "Starre Schichtmodelle",
+          "Konflikt mit Kita-Öffnungszeiten",
+          "Angst vor Teilzeit-Nachteilen",
+          "Fehlende Flexibilität"
+        ],
+        "motivations": [
+          "Familienfreundliche Arbeitszeiten",
+          "Teilzeit-Möglichkeit ohne Karriereknick",
+          "Kurzer Arbeitsweg",
+          "Verständnisvoller Arbeitgeber"
+        ],
+        "core_quote": "Ich brauche einen Job, der zu meinem Leben passt."
+      },
+      "creative_input": {
+        "visual_style_keywords": [
+          "freundlich",
+          "organisiert",
+          "lächelnd",
+          "im Hintergrund spielendes Kind (unscharf)",
+          "helle, warme Farben"
+        ],
+        "emotional_tone": "Hoffnungsvoll und entschlossen",
+        "key_message_to_resonate": "Zurück in den OP – zu deinen Bedingungen."
+      }
+    }
+  ]
+}

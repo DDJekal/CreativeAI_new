@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_root))
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -27,7 +27,7 @@ import asyncio
 import base64
 
 from src.services.nano_banana_service import NanoBananaService, LayoutStyle, VisualStyle
-from src.services.visual_brief_service import VisualBriefService
+from src.services.visual_brief_service import VisualBriefService, VisualBrief
 from src.services.ci_scraping_service import CIScrapingService
 from src.services.research_service import ResearchService
 from src.services.copywriting_service import CopywritingService
@@ -152,9 +152,83 @@ class GenerateMotifRequest(BaseModel):
     num_motifs: int = 4
 
 
+class ManusGenerateRequest(BaseModel):
+    """Request für Manus.ai Integration - Persona-basierte Creative-Generierung"""
+    job_title: str
+    company_name: str
+    location: str
+    website_url: Optional[str] = None
+    ci_colors: Optional[dict] = None  # {primary, secondary, accent, background}
+    font_family: Optional[str] = None
+    personas: List[dict]  # Manus Persona Format (siehe Plan)
+
+
+class ManusCreativeResponse(BaseModel):
+    """Einzelnes generiertes Creative für eine Persona"""
+    persona_id: str
+    persona_name: str
+    archetype: str
+    image_base64: str
+    texts: dict  # {headline, subline, cta, benefits}
+    layout_config: dict  # {layout_position, visual_style, text_rendering}
+
+
+class ManusGenerateResponse(BaseModel):
+    """Response für Manus.ai Persona-Generierung"""
+    success: bool
+    creatives: List[ManusCreativeResponse]
+    ci_data: Optional[dict] = None
+    generation_time_ms: int = 0
+    error_message: Optional[str] = None
+
+
 # ============================================================================
 # UTILITY FUNCTIONS
 # ============================================================================
+
+async def verify_manus_api_key(authorization: Optional[str] = Header(None)) -> bool:
+    """
+    Verifiziert Manus API Key via Bearer Token
+    
+    Args:
+        authorization: Authorization Header (Bearer Token)
+        
+    Returns:
+        True wenn authentifiziert
+        
+    Raises:
+        HTTPException 401 wenn ungültig
+    """
+    expected_key = os.getenv("MANUS_API_KEY")
+    
+    # Wenn kein Key konfiguriert ist, erlaube Zugriff (Development)
+    if not expected_key:
+        logger.warning("MANUS_API_KEY not set - allowing unrestricted access")
+        return True
+    
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Authorization header"
+        )
+    
+    # Bearer Token Format prüfen
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Authorization header format (expected: Bearer <token>)"
+        )
+    
+    token = authorization.replace("Bearer ", "")
+    
+    if token != expected_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key"
+        )
+    
+    return True
+
 
 def encode_image_to_base64(image_path: str) -> Optional[str]:
     """
@@ -173,6 +247,100 @@ def encode_image_to_base64(image_path: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"Failed to encode image {image_path}: {e}")
         return None
+
+
+def _manus_persona_to_visual_brief(persona: dict, headline: str) -> VisualBrief:
+    """
+    Mappt Manus Persona-Format direkt auf VisualBrief (ohne GPT-Call)
+    
+    Args:
+        persona: Manus Persona Dictionary mit creative_input
+        headline: Die generierte Headline für diese Persona
+        
+    Returns:
+        VisualBrief Objekt bereit für NanoBananaService
+    """
+    creative_input = persona.get("creative_input", {})
+    psychographics = persona.get("psychographics", {})
+    
+    # Visual Style Keywords direkt übernehmen
+    visual_style_keywords = creative_input.get("visual_style_keywords", [])
+    emotional_tone = creative_input.get("emotional_tone", "professional and approachable")
+    
+    # Person Expression aus Keywords ableiten
+    expression_keywords = [kw for kw in visual_style_keywords if any(
+        exp in kw.lower() for exp in ["lächel", "smile", "freundlich", "friendly", "erschöpft", "tired", "nachdenklich", "thoughtful", "kompetent", "competent"]
+    )]
+    person_expression = ", ".join(expression_keywords) if expression_keywords else "professional, approachable demeanor"
+    
+    # Scene Suggestions aus Keywords
+    scene_keywords = [kw for kw in visual_style_keywords if any(
+        scene in kw.lower() for scene in ["flur", "corridor", "auto", "car", "büro", "office", "hintergrund", "background", "kind", "child", "team"]
+    )]
+    scene_suggestions = scene_keywords[:3] if scene_keywords else ["professional workplace setting"]
+    
+    # Environment Hints
+    environment_keywords = [kw for kw in visual_style_keywords if any(
+        env in kw.lower() for env in ["hintergrund", "background", "modern", "hell", "bright", "warm", "kalt", "cold"]
+    )]
+    environment_hints = environment_keywords if environment_keywords else ["clean, professional environment"]
+    
+    # Avoid Elements aus Pain Points ableiten
+    pain_points = psychographics.get("pain_points", [])
+    avoid_mapping = {
+        "stress": ["stressed expression", "chaotic environment", "overtime indicators"],
+        "überstunden": ["overtime", "exhaustion", "late hours"],
+        "belastung": ["physical strain", "exhaustion", "heavy lifting"],
+        "unsicherheit": ["uncertainty", "instability", "temporary feel"],
+        "einsamkeit": ["isolation", "loneliness", "empty spaces"],
+        "konflikt": ["conflict", "tension", "disagreement"],
+        "starr": ["rigid", "inflexible", "harsh lighting"]
+    }
+    
+    avoid_elements = []
+    for pain in pain_points:
+        pain_lower = pain.lower()
+        for key, avoids in avoid_mapping.items():
+            if key in pain_lower:
+                avoid_elements.extend(avoids)
+    
+    # Dedupliziere
+    avoid_elements = list(set(avoid_elements))
+    
+    # Color Mood aus emotional_tone ableiten
+    tone_lower = emotional_tone.lower()
+    if "warm" in tone_lower or "hoffnungsvoll" in tone_lower:
+        color_mood = "warm, inviting colors"
+    elif "professionell" in tone_lower or "ambition" in tone_lower:
+        color_mood = "professional, balanced tones"
+    elif "ruhig" in tone_lower or "sehnsüchtig" in tone_lower:
+        color_mood = "calm, peaceful colors"
+    else:
+        color_mood = "natural, balanced tones"
+    
+    # Mood Keywords aus emotional_tone extrahieren
+    mood_words = ["professional", "approachable", "confident"]
+    if "sehnsüchtig" in tone_lower or "suchend" in tone_lower:
+        mood_words = ["contemplative", "hopeful", "searching"]
+    elif "hoffnungsvoll" in tone_lower or "entschlossen" in tone_lower:
+        mood_words = ["hopeful", "determined", "positive"]
+    elif "ambitioniert" in tone_lower:
+        mood_words = ["ambitious", "focused", "driven"]
+    
+    return VisualBrief(
+        mood_keywords=mood_words,
+        person_expression=person_expression,
+        emotional_tone=emotional_tone,
+        scene_suggestions=scene_suggestions,
+        environment_hints=environment_hints,
+        avoid_elements=avoid_elements,
+        color_mood=color_mood,
+        lighting_suggestion="natural, soft lighting" if "warm" in tone_lower else "natural lighting",
+        text_friendly_areas=["upper_left", "lower_third"],
+        source_headline=headline,
+        source_style="manus_persona",
+        source_benefits=[]
+    )
 
 
 class GenerateWithMotifRequest(BaseModel):
@@ -533,7 +701,7 @@ async def auto_quick_generate(request: AutoQuickGenerateRequest):
                 "pro_layout": LayoutStyle.CENTER,
                 "pro_visual": VisualStyle.FRIENDLY,
                 "art_layout": LayoutStyle.SPLIT,
-                "art_visual": VisualStyle.CREATIVE,
+                "art_visual": VisualStyle.MODERN,
                 "designer": "lifestyle"
             },
             {
@@ -956,7 +1124,7 @@ async def generate_campaign_full(request: CampaignGenerateRequest):
         # Pools für Rotation
         headline_types_pool = ["hook", "emotional", "benefit_driven", "salary", "direct", "location"]
         layout_pool = [LayoutStyle.LEFT, LayoutStyle.CENTER, LayoutStyle.SPLIT, LayoutStyle.BOTTOM, LayoutStyle.LEFT, LayoutStyle.CENTER]
-        visual_pool = [VisualStyle.PROFESSIONAL, VisualStyle.MODERN, VisualStyle.ELEGANT, VisualStyle.CREATIVE, VisualStyle.FRIENDLY, VisualStyle.BOLD]
+        visual_pool = [VisualStyle.PROFESSIONAL, VisualStyle.MODERN, VisualStyle.ELEGANT, VisualStyle.CINEMATIC, VisualStyle.FRIENDLY, VisualStyle.BOLD]
         
         # Shuffle für Variation
         random.shuffle(headline_types_pool)
@@ -1143,6 +1311,7 @@ async def generate_campaign_full(request: CampaignGenerateRequest):
                     secondary_color=ci_data["brand_colors"].get("secondary", "#C8D9E8"),
                     accent_color=ci_data["brand_colors"].get("accent", "#FFA726"),
                     background_color=ci_data.get("brand_colors", {}).get("background", "#FFFFFF"),
+                    font_family=ci_data.get("font_family", "Inter"),  # NEU: Brand Font
                     model="pro",
                     designer_type=config["designer"],
                     visual_brief=brief,
@@ -1506,7 +1675,7 @@ async def bulk_generate(request: BulkGenerateRequest):
                 "pro_layout": LayoutStyle.SPLIT,
                 "pro_visual": VisualStyle.MODERN,
                 "art_layout": LayoutStyle.SPLIT,
-                "art_visual": VisualStyle.CREATIVE,
+                "art_visual": VisualStyle.BOLD,
                 "designer": "job_focus"
             }
         ]
@@ -2271,7 +2440,7 @@ async def regenerate_single_creative(request: dict):
         headline_type = random.choice(headline_types)
         
         visual_styles = [VisualStyle.PROFESSIONAL, VisualStyle.MODERN, VisualStyle.ELEGANT, 
-                        VisualStyle.CREATIVE, VisualStyle.FRIENDLY, VisualStyle.BOLD]
+                        VisualStyle.DOCUMENTARY, VisualStyle.FRIENDLY, VisualStyle.BOLD]
         visual_style = random.choice(visual_styles)
         
         persona_idx = random.randint(0, len(copy_variants) - 1)
@@ -2786,6 +2955,291 @@ async def get_motif_thumbnail(motif_id: str):
     except Exception as e:
         logger.error(f"Failed to get motif thumbnail: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# MANUS.AI INTEGRATION
+# ============================================================================
+
+@app.post("/api/manus/generate", response_model=ManusGenerateResponse)
+async def manus_generate(
+    request: ManusGenerateRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Manus.ai Integration - Persona-basierte Creative-Generierung
+    
+    Generiert pro Persona ein Creative basierend auf:
+    - Psychographics (Pain Points, Motivations, Core Quote)
+    - Creative Input (Visual Style Keywords, Emotional Tone)
+    - Narrative Context
+    
+    Body:
+        job_title: Stellentitel
+        company_name: Firmenname
+        location: Standort
+        website_url: Optional - für CI-Scraping
+        ci_colors: Optional - {primary, secondary, accent, background}
+        font_family: Optional - Brand Font
+        personas: Liste von Manus Persona Objects
+        
+    Headers:
+        Authorization: Bearer <MANUS_API_KEY>
+        
+    Returns:
+        Liste von generierten Creatives (Base64) mit Texten und Layout-Config
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        # Auth-Check
+        await verify_manus_api_key(authorization)
+        
+        logger.info("="*70)
+        logger.info("MANUS.AI PERSONA-BASED GENERATION - STARTED")
+        logger.info(f"Job: {request.job_title} @ {request.company_name}, {request.location}")
+        logger.info(f"Personas: {len(request.personas)}")
+        logger.info("="*70)
+        
+        # ============================================
+        # PHASE 1: CI-Farben (einmalig)
+        # ============================================
+        logger.info("[1/3] CI-Farben ermitteln...")
+        
+        if request.ci_colors:
+            logger.info("  ✓ CI-Farben vom Request übernommen")
+            ci_data = {
+                "primary": request.ci_colors.get("primary", "#2B5A8E"),
+                "secondary": request.ci_colors.get("secondary", "#7BA428"),
+                "accent": request.ci_colors.get("accent", "#FFA726"),
+                "background": request.ci_colors.get("background", "#FFFFFF")
+            }
+            font_family = request.font_family or "Inter"
+        elif request.website_url:
+            logger.info(f"  CI-Scraping von {request.website_url}...")
+            ci_service = CIScrapingService()
+            try:
+                ci_result = await ci_service.extract_brand_identity(
+                    company_name=request.company_name,
+                    website_url=request.website_url
+                )
+                ci_data = ci_result.get("brand_colors", {
+                    "primary": "#2B5A8E",
+                    "secondary": "#7BA428",
+                    "accent": "#FFA726",
+                    "background": "#FFFFFF"
+                })
+                font_family = ci_result.get("font_family", "Inter")
+                logger.info(f"  ✓ CI-Scraping erfolgreich: {ci_data['primary']}")
+            except Exception as e:
+                logger.warning(f"  CI-Scraping fehlgeschlagen: {e}")
+                ci_data = {
+                    "primary": "#2B5A8E",
+                    "secondary": "#7BA428",
+                    "accent": "#FFA726",
+                    "background": "#FFFFFF"
+                }
+                font_family = "Inter"
+        else:
+            logger.info("  → Default-Farben verwenden")
+            ci_data = {
+                "primary": "#2B5A8E",
+                "secondary": "#7BA428",
+                "accent": "#FFA726",
+                "background": "#FFFFFF"
+            }
+            font_family = "Inter"
+        
+        logger.info(f"  Primary: {ci_data['primary']}, Secondary: {ci_data['secondary']}")
+        logger.info(f"  Font: {font_family}")
+        
+        # ============================================
+        # PHASE 2: Persona-Generierung (parallel)
+        # ============================================
+        logger.info(f"[2/3] Generiere {len(request.personas)} Creatives (parallel)...")
+        
+        copywriting_service = CopywritingService()
+        nano = NanoBananaService(default_model="pro")
+        
+        async def generate_persona_creative(persona: dict, index: int) -> dict:
+            """Generiert ein Creative für eine Persona"""
+            persona_id = persona.get("id", f"persona_{index}")
+            persona_name = persona.get("demographics", {}).get("name", f"Persona {index}")
+            archetype = persona.get("archetype", "Unbekannt")
+            
+            logger.info(f"  [{index+1}/{len(request.personas)}] {persona_name} ({archetype})...")
+            
+            try:
+                # Extrahiere Daten
+                psychographics = persona.get("psychographics", {})
+                creative_input = persona.get("creative_input", {})
+                
+                motivations = psychographics.get("motivations", [])
+                pain_points = psychographics.get("pain_points", [])
+                core_quote = psychographics.get("core_quote", "")
+                key_message = creative_input.get("key_message_to_resonate", "")
+                
+                # Option 1: Nutze key_message direkt als Headline (gibt Manus maximale Kontrolle)
+                if key_message:
+                    headline = key_message
+                    # Generiere nur Subline + CTA + Benefits
+                    motivation = motivations[0] if motivations else "Karriereentwicklung"
+                    pain_point = pain_points[0] if pain_points else "Unzufriedenheit"
+                    
+                    # Vereinfachtes Copywriting nur für Subline/CTA/Benefits
+                    text_variant = await copywriting_service._prompt_generate_persona_variant(
+                        persona_index=index + 1,
+                        job_title=request.job_title,
+                        company_name=request.company_name,
+                        location=request.location,
+                        motivation=motivation,
+                        pain_point=pain_point,
+                        emotional_trigger=core_quote,
+                        key_benefit=motivations[1] if len(motivations) > 1 else motivation
+                    )
+                    
+                    # Überschreibe Headline mit key_message
+                    subline = text_variant.subline
+                    cta = text_variant.cta
+                    benefits = text_variant.benefits[:3]  # Max 3 Benefits
+                else:
+                    # Option 2: Generiere alle Texte via Copywriting
+                    motivation = motivations[0] if motivations else "Karriereentwicklung"
+                    pain_point = pain_points[0] if pain_points else "Unzufriedenheit"
+                    
+                    text_variant = await copywriting_service._prompt_generate_persona_variant(
+                        persona_index=index + 1,
+                        job_title=request.job_title,
+                        company_name=request.company_name,
+                        location=request.location,
+                        motivation=motivation,
+                        pain_point=pain_point,
+                        emotional_trigger=core_quote,
+                        key_benefit=motivations[1] if len(motivations) > 1 else motivation
+                    )
+                    
+                    headline = text_variant.headline
+                    subline = text_variant.subline
+                    cta = text_variant.cta
+                    benefits = text_variant.benefits[:3]
+                
+                logger.info(f"    Headline: {headline[:40]}...")
+                
+                # VisualBrief direkt aus Manus-Daten (ohne GPT-Call!)
+                visual_brief = _manus_persona_to_visual_brief(persona, headline)
+                
+                # Layout & Style für Varianz
+                from src.config.layout_library import get_random_layout
+                from src.config.text_rendering_library import get_random_text_rendering_style
+                
+                layout_position, layout_prompt = get_random_layout()
+                text_rendering_style = get_random_text_rendering_style()
+                
+                # Designer-Type aus Archetype ableiten
+                archetype_lower = archetype.lower()
+                if "erfahren" in archetype_lower or "senior" in archetype_lower:
+                    designer_type = "lifestyle"
+                elif "springer" in archetype_lower or "dynamisch" in archetype_lower:
+                    designer_type = "job_focus"
+                elif "rückkehr" in archetype_lower or "familie" in archetype_lower:
+                    designer_type = "team"
+                else:
+                    designer_type = "lifestyle"
+                
+                # Creative generieren
+                result = await nano.generate_creative(
+                    job_title=request.job_title,
+                    company_name=request.company_name,
+                    headline=headline,
+                    subline=subline,
+                    benefits=benefits,
+                    cta=cta,
+                    location=request.location,
+                    primary_color=ci_data["primary"],
+                    secondary_color=ci_data["secondary"],
+                    accent_color=ci_data["accent"],
+                    background_color=ci_data["background"],
+                    font_family=font_family,
+                    visual_brief=visual_brief,
+                    layout_style=layout_position.value if hasattr(layout_position, 'value') else str(layout_position),
+                    layout_prompt=layout_prompt,
+                    text_rendering_style=text_rendering_style,
+                    model="pro",
+                    designer_type=designer_type
+                )
+                
+                if not result.success:
+                    raise Exception(f"Generation failed: {result.error_message}")
+                
+                logger.info(f"    ✓ Creative generiert ({result.generation_time_ms}ms)")
+                
+                return {
+                    "persona_id": persona_id,
+                    "persona_name": persona_name,
+                    "archetype": archetype,
+                    "image_base64": result.image_base64,
+                    "texts": {
+                        "headline": headline,
+                        "subline": subline,
+                        "cta": cta,
+                        "benefits": benefits
+                    },
+                    "layout_config": {
+                        "layout_position": layout_position.name if hasattr(layout_position, 'name') else str(layout_position),
+                        "text_rendering": text_rendering_style.name,
+                        "designer_type": designer_type
+                    }
+                }
+                
+            except Exception as e:
+                logger.error(f"    ✗ Fehler bei {persona_name}: {e}")
+                raise
+        
+        # Parallel generieren
+        creative_tasks = [
+            generate_persona_creative(persona, i)
+            for i, persona in enumerate(request.personas)
+        ]
+        
+        creatives_data = await asyncio.gather(*creative_tasks)
+        
+        # ============================================
+        # PHASE 3: Response aufbauen
+        # ============================================
+        creatives = [
+            ManusCreativeResponse(**creative)
+            for creative in creatives_data
+        ]
+        
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        
+        logger.info("="*70)
+        logger.info(f"✅ MANUS GENERATION COMPLETED - {len(creatives)} Creatives in {elapsed_ms}ms")
+        logger.info("="*70)
+        
+        return ManusGenerateResponse(
+            success=True,
+            creatives=creatives,
+            ci_data=ci_data,
+            generation_time_ms=elapsed_ms
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Manus generation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        
+        return ManusGenerateResponse(
+            success=False,
+            creatives=[],
+            generation_time_ms=elapsed_ms,
+            error_message=str(e)
+        )
 
 
 # ============================================================================
