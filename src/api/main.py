@@ -3167,7 +3167,6 @@ async def manus_generate(
                     secondary_color=ci_data["secondary"],
                     accent_color=ci_data["accent"],
                     background_color=ci_data["background"],
-                    font_family=font_family,
                     visual_brief=visual_brief,
                     layout_style=layout_position.value if hasattr(layout_position, 'value') else str(layout_position),
                     layout_prompt=layout_prompt,
