@@ -383,8 +383,25 @@ def get_layout_info(position: LayoutPosition, style: LayoutStyle) -> str:
 
 
 # =============================================================================
-# CONVENIENCE FUNKTION FÜR KOMPLETTE ZUFÄLLIGE AUSWAHL
+# CONVENIENCE FUNKTIONEN
 # =============================================================================
+
+def get_random_layout(content_type: str = None) -> tuple:
+    """
+    Wählt ein zufälliges Layout (Position) und gibt Position + Prompt zurück.
+    Kompatibilitätsfunktion für Manus API Endpoint.
+    
+    Args:
+        content_type: Optional Content-Typ für Position-Auswahl
+    
+    Returns:
+        Tuple von (LayoutPosition, layout_prompt_string)
+    """
+    position = get_random_layout_position(content_type)
+    style = get_random_layout_style()
+    prompt = combine_layout(position, style)
+    return position, prompt
+
 
 def get_random_layout_combo(content_type: str = None) -> tuple[LayoutPosition, LayoutStyle, str]:
     """
