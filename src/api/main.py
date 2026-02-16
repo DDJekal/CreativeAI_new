@@ -3072,7 +3072,7 @@ async def manus_generate(
             logger.info(f"  [{index+1}/{len(request.personas)}] {persona_name} ({archetype})...")
             
             try:
-                # Extrahiere Daten
+                # Extrahiere Daten aus Manus-Persona
                 psychographics = persona.get("psychographics", {})
                 creative_input = persona.get("creative_input", {})
                 demographics = persona.get("demographics", {})
@@ -3084,33 +3084,39 @@ async def manus_generate(
                 visual_keywords = creative_input.get("visual_style_keywords", [])
                 emotional_tone = creative_input.get("emotional_tone", "professional")
                 
-                # Headline: Nutze key_message direkt (gibt Manus maximale Kontrolle)
-                if key_message:
-                    # Trenne Headline und Subline wenn beide in key_message sind (durch Punkt oder Zeilenumbruch)
-                    if ". " in key_message:
-                        parts = key_message.split(". ", 1)
-                        headline = parts[0] + "."
-                        subline = parts[1] if len(parts) > 1 else ""
-                    else:
-                        headline = key_message
-                        subline = ""
-                else:
-                    headline = archetype
-                    subline = ""
+                # ============================================
+                # COPYWRITING PIPELINE - Generiere professionelle Texte
+                # ============================================
+                logger.info(f"    → Copywriting Pipeline startet...")
                 
-                # Subline: Nutze core_quote wenn keine Subline vorhanden
-                if not subline and core_quote:
-                    subline = core_quote
+                # Extrahiere Inputs für Copywriting
+                motivation = motivations[0] if motivations else "Karriereentwicklung"
+                pain_point = pain_points[0] if pain_points else "Unzufriedenheit im aktuellen Job"
+                emotional_trigger = core_quote if core_quote else key_message
+                key_benefit = motivations[1] if len(motivations) > 1 else motivation
                 
-                # Benefits: Nutze motivations direkt (max 3)
-                benefits = motivations[:3] if motivations else []
+                # Generiere professionelle Texte via CopywritingService
+                text_variant = await copywriting_service._prompt_generate_persona_variant(
+                    persona_index=index + 1,
+                    job_title=request.job_title,
+                    company_name=request.company_name if request.company_name else "Unser Unternehmen",
+                    location=request.location,
+                    motivation=motivation,
+                    pain_point=pain_point,
+                    emotional_trigger=emotional_trigger,
+                    key_benefit=key_benefit
+                )
                 
-                # CTA: Standard oder aus Manus
-                cta = "Jetzt bewerben"
+                # Nutze generierte Texte
+                headline = text_variant.headline
+                subline = text_variant.subline
+                benefits = text_variant.benefits[:3] if text_variant.benefits else motivations[:3]
+                cta = text_variant.cta if text_variant.cta else "Jetzt bewerben"
                 
-                logger.info(f"    Headline: {headline[:50]}...")
-                logger.info(f"    Subline: {subline[:50] if subline else '(keine)'}...")
-                logger.info(f"    Benefits: {len(benefits)}")
+                logger.info(f"    ✓ Copywriting fertig:")
+                logger.info(f"      Headline: {headline[:50]}...")
+                logger.info(f"      Subline: {subline[:50] if subline else '(keine)'}...")
+                logger.info(f"      Benefits: {len(benefits)}")
                 
                 # VisualBrief über VisualBriefService generieren (wie im erfolgreichen Script)
                 # Erstelle detaillierten Style-String aus Manus-Daten
