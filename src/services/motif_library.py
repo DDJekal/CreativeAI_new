@@ -376,6 +376,38 @@ class MotifLibrary:
             "total_usage": total_usage,
             "most_used": most_used
         }
+    
+    def get_thumbnail_base64(self, motif_id: str) -> Optional[str]:
+        """
+        Holt Thumbnail als Base64 String für API-Response
+        
+        Args:
+            motif_id: Motiv-ID
+            
+        Returns:
+            Base64-kodiertes Thumbnail oder None
+        """
+        import base64
+        
+        motif = self.get_by_id(motif_id)
+        if not motif:
+            return None
+        
+        # Nutze Thumbnail falls vorhanden, sonst Original
+        image_path = Path(motif.get("thumbnail_path", motif.get("file_path")))
+        
+        if not image_path.exists():
+            logger.error(f"Image file not found: {image_path}")
+            return None
+        
+        try:
+            with open(image_path, "rb") as f:
+                image_data = f.read()
+                base64_str = base64.b64encode(image_data).decode('utf-8')
+                return base64_str
+        except Exception as e:
+            logger.error(f"Failed to encode thumbnail to base64: {e}")
+            return None
 
 
 # Global instance

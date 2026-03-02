@@ -323,6 +323,89 @@ WICHTIG:
             job_title=copy_variant.get("job_title", ""),
             cta=cta_text
         )
+    
+    async def create_visual_concept_from_text(
+        self,
+        headline: str,
+        subline: str,
+        benefits: List[str],
+        job_title: str = "",
+        cta: str = ""
+    ) -> dict:
+        """
+        Erstellt visuelles Konzept aus Text-Variante
+        Für Motiv-Generierung im Creator Mode
+        
+        Vereinfachte Version von generate_brief die direkt
+        Scene Description + Style Direction zurückgibt.
+        
+        Args:
+            headline: Haupt-Headline
+            subline: Untertitel
+            benefits: Liste der Benefits
+            job_title: Stellentitel (optional)
+            cta: Call-to-Action (optional)
+            
+        Returns:
+            Dictionary mit:
+            - scene_description: str - Was im Bild zu sehen sein soll
+            - style_direction: str - Visueller Stil/Stimmung
+        """
+        logger.info(f"Creating visual concept for: '{headline}'")
+        
+        benefits_text = "\n".join([f"- {b}" for b in benefits]) if benefits else "Keine"
+        
+        system_prompt = """Du bist ein Art Director für Recruiting Creatives.
+
+Analysiere den Text und erstelle ein visuelles Konzept für ein Motiv (OHNE Text-Overlays).
+
+Gib zurück:
+1. SCENE DESCRIPTION: Was konkret im Bild zu sehen sein soll (Szene, Person, Aktion)
+2. STYLE DIRECTION: Visueller Stil, Stimmung, Farben, Beleuchtung
+
+Sei KONKRET und ACTIONABLE für die Bildgenerierung."""
+
+        user_prompt = f"""# Text-Variante
+
+Headline: {headline}
+Subline: {subline}
+Benefits:
+{benefits_text}
+Stellentitel: {job_title}
+
+Erstelle ein visuelles Konzept das die Essenz dieser Texte visuell umsetzt.
+
+Antworte im JSON Format:
+{{
+  "scene_description": "Konkrete Szenen-Beschreibung...",
+  "style_direction": "Visueller Stil und Stimmung..."
+}}"""
+
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.7
+            )
+            
+            result = json.loads(response.choices[0].message.content)
+            
+            logger.info(f"✅ Visual concept created")
+            logger.debug(f"   Scene: {result.get('scene_description', '')[:100]}...")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Visual concept creation failed: {e}")
+            # Fallback
+            return {
+                "scene_description": f"Professional recruiting scene for {job_title}. Person in modern work environment, confident and approachable.",
+                "style_direction": "Clean, modern, professional. Natural lighting. Warm colors."
+            }
 
 
 # ============================================

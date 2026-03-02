@@ -744,38 +744,46 @@ class CIScrapingService:
 
 AUFGABE: Identifiziere die MARKENFARBEN (Brand Colors) - Primary, Secondary UND Accent!
 
-WICHTIG - UNTERSCHEIDE:
-✓ MARKENFARBEN:
-  - PRIMARY: Hauptfarbe im Logo, dominant auf der Seite
-  - SECONDARY: Zweite Markenfarbe (oft dunklere/hellere Variante oder Komplementärfarbe)
-  - ACCENT: Akzentfarbe für Buttons, Links, Highlights (oft kontrastreich)
+🎯 KRITISCH - HÖCHSTE PRIORITÄT:
+1. **LOGO IST WAHRHEIT**: Die Farbe(n) im Logo sind die PRIMARY Brand Color(s)
+2. **BUTTONS NICHT FOTOS**: Suche nach UI-Elementen (Buttons, Links), NICHT nach Farben in Fotos/Bildern
+3. **KONSISTENZ**: Die Brand Colors wiederholen sich mehrfach auf der Seite (Logo, Buttons, Headlines)
+4. **IGNORE HERO IMAGES**: Do NOT extract colors from large background photos/hero images
+5. **STRUCTURAL UI ONLY**: Focus on navigation bars, buttons, logos, and headers - NOT content images
 
-✗ KEINE MARKENFARBEN:
-  - Standard UI-Farben (blaue Links, graue Texte)
-  - Farben aus Content-Fotos
-  - Weiß/Schwarz/Grau für Hintergründe
+✓ MARKENFARBEN FINDEN IN DIESER REIHENFOLGE:
+  1. PRIMARY: **LOGO** - Die Hauptfarbe im Firmenlogo (oft oben links)
+  2. ACCENT: **BUTTONS/CTAs** - Farbe der Aktions-Buttons ("Mehr erfahren", "Jetzt buchen", etc.)
+  3. SECONDARY: **Sekundäre UI-Elemente** - Navigation, Footer, sekundäre Headlines
 
-WO FINDEST DU DIE FARBEN:
-- PRIMARY: Logo, Header-Hintergrund, Hauptüberschriften
-- SECONDARY: Navigation, Footer, sekundäre Elemente
-- ACCENT: CTA-Buttons, Hover-Effekte, Icons, Links
+✗ IGNORIERE DIESE FARBEN:
+  - Farben in **Fotos** (Menschen, Natur, Gebäude) - NUR UI-Elemente!
+  - Farben in **Hero-Bildern** oder großen Background-Photos
+  - Standard-Farben: Weiß (#FFFFFF), Schwarz (#000000), Grau
+  - Zufällige Content-Farben die NUR 1x vorkommen
+
+🔍 SCHRITT-FÜR-SCHRITT ANALYSE:
+1. Finde das Logo (meist oben links im Header) → PRIMARY Color
+2. Finde Call-to-Action Buttons ("Jetzt...", "Mehr erfahren") → ACCENT Color
+3. Prüfe ob Navigation/Footer eine eigene Farbe hat → SECONDARY Color
 
 OUTPUT (JSON):
 {{
-  "primary_color": "#XXXXXX (Hauptfarbe, PFLICHT!)",
-  "secondary_color": "#XXXXXX (zweite Markenfarbe, kann ähnlich zur Primary sein)",
-  "accent_color": "#XXXXXX (Akzentfarbe für Buttons/CTAs)",
+  "primary_color": "#XXXXXX (Farbe aus dem LOGO, höchste Priorität!)",
+  "secondary_color": "#XXXXXX (zweite UI-Farbe oder generiert)",
+  "accent_color": "#XXXXXX (Button-Farbe, oft kontrastreich zur Primary)",
   "confidence": 0-100,
   "found_in": {{
-    "primary": ["logo", "header"],
+    "primary": ["logo"],
     "secondary": ["navigation", "footer"],
-    "accent": ["buttons", "links"]
-  }}
+    "accent": ["buttons", "cta"]
+  }},
+  "reasoning": "Kurze Erklärung welche Elemente analysiert wurden"
 }}
 
-WICHTIG: Gib IMMER alle 3 Farben an! Wenn du nur eine findest, leite die anderen ab:
-- Secondary = dunklere/hellere Variante der Primary
-- Accent = kontrastierende Farbe (z.B. Orange zu Blau)"""
+⚠️ FALLSTRICK VERMEIDEN:
+- Wenn du eine Farbe siehst die NUR in einem Foto vorkommt → IGNORIEREN
+- Wenn du unsicher bist → Logo-Farbe ist immer die PRIMARY!"""
 
         response = await self.openai_client.chat.completions.create(
             model="gpt-4o",

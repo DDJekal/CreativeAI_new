@@ -389,7 +389,6 @@ def get_layout_info(position: LayoutPosition, style: LayoutStyle) -> str:
 def get_random_layout(content_type: str = None) -> tuple:
     """
     Wählt ein zufälliges Layout (Position) und gibt Position + Prompt zurück.
-    Kompatibilitätsfunktion für Manus API Endpoint.
     
     Args:
         content_type: Optional Content-Typ für Position-Auswahl

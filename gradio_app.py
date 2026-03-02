@@ -914,8 +914,8 @@ def extract_ci_from_website_url(website_url: str):
         
         if response.status_code == 200:
             data = response.json()
-            colors = data.get("brand_colors", {})
-            font = data.get("font_family", "Roboto")
+            colors = data.get("colors", {})  # Backend gibt "colors" zurück, nicht "brand_colors"
+            font = data.get("font", "Roboto")  # Backend gibt "font" zurück, nicht "font_family"
             
             primary = colors.get("primary", "#2B5A8E")
             secondary = colors.get("secondary", "#C8D9E8")

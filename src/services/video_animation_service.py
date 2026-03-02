@@ -43,10 +43,11 @@ class VideoAnimationService:
     
     # Verfügbare Modelle
     MODELS = {
-        "fast": "veo-3.0-fast-generate-001",    # Schnell, gut für Tests
-        "standard": "veo-3.0-generate-001",      # Beste Balance
-        "quality": "veo-3.1-generate-preview",   # Höchste Qualität
-        "veo2": "veo-2.0-generate-001"           # Älteres Modell
+        "fast": "veo-3.0-fast-generate-001",       # Schnell, gut für Tests
+        "fast31": "veo-3.1-fast-generate-preview", # Veo 3.1 Fast (First+Last Frame)
+        "standard": "veo-3.0-generate-001",        # Beste Balance
+        "quality": "veo-3.1-generate-preview",     # Höchste Qualität (First+Last Frame)
+        "veo2": "veo-2.0-generate-001"             # Älteres Modell
     }
     
     # Bewegungstypen für Recruiting-Creatives
@@ -262,6 +263,194 @@ Output: Smooth, professional video suitable for social media advertising."""
                 
         except Exception as e:
             logger.error(f"Video generation failed: {e}")
+            return VideoResult(
+                success=False,
+                error=str(e),
+                model=model_name
+            )
+    
+    async def animate_between_frames(
+        self,
+        start_image_path: str,
+        end_image_path: str,
+        prompt: Optional[str] = None,
+        model: Optional[Literal["fast", "standard", "quality", "veo2"]] = None,
+        duration_seconds: int = 5
+    ) -> VideoResult:
+        """
+        Animiert zwischen zwei Frames (First Frame + Last Frame)
+        
+        Die KI interpoliert automatisch die Animation zwischen Start- und End-Bild.
+        Ideal für:
+        - Text/Benefits die "einfliegen"
+        - Personen die sich bewegen
+        - Übergänge zwischen Zuständen
+        
+        Args:
+            start_image_path: Pfad zum Start-Bild (z.B. nur Logo)
+            end_image_path: Pfad zum End-Bild (fertiges Creative mit allem)
+            prompt: Optionaler Prompt für die Animation
+            model: Modell (fast/standard/quality)
+            duration_seconds: Gewünschte Dauer
+            
+        Returns:
+            VideoResult mit Pfad zum generierten Video
+        """
+        import time
+        start_time = time.time()
+        
+        model_name = self.MODELS.get(model or self.default_model, self.MODELS["fast"])
+        
+        logger.info(f"Animating between frames: {start_image_path} -> {end_image_path}")
+        logger.info(f"Model: {model_name}")
+        
+        try:
+            # Beide Bilder laden
+            start_path = Path(start_image_path)
+            end_path = Path(end_image_path)
+            
+            if not start_path.exists():
+                return VideoResult(success=False, error=f"Start image not found: {start_path}")
+            if not end_path.exists():
+                return VideoResult(success=False, error=f"End image not found: {end_path}")
+            
+            # Bilder als Bytes laden
+            with open(start_path, "rb") as f:
+                start_bytes = f.read()
+            with open(end_path, "rb") as f:
+                end_bytes = f.read()
+            
+            # MIME-Types
+            start_mime = "image/jpeg" if start_path.suffix.lower() in [".jpg", ".jpeg"] else "image/png"
+            end_mime = "image/jpeg" if end_path.suffix.lower() in [".jpg", ".jpeg"] else "image/png"
+            
+            # Animation Prompt
+            default_prompt = f"""Create a smooth {duration_seconds}-second video animation transitioning from the first frame to the last frame.
+
+ANIMATION STYLE:
+- Animate the people in the image with natural, subtle movements (breathing, slight head movement, blinking)
+- Text elements and UI components should fade in smoothly
+- The transition should feel natural and professional
+- Background elements can have subtle parallax movement
+
+IMPORTANT:
+- Keep the overall composition stable
+- Text should fade/slide in elegantly
+- People should have lifelike subtle animations
+- Maintain professional quality for advertising use
+
+Duration: {duration_seconds} seconds"""
+            
+            full_prompt = prompt or default_prompt
+            
+            logger.info(f"Prompt: {full_prompt[:100]}...")
+            
+            # Video mit First Frame + Last Frame generieren
+            # API Syntax: image = first frame, config.last_frame = last frame
+            response = self.client.models.generate_videos(
+                model=model_name,
+                prompt=full_prompt,
+                image=types.Image(
+                    image_bytes=start_bytes,
+                    mime_type=start_mime
+                ),
+                config=types.GenerateVideosConfig(
+                    number_of_videos=1,
+                    last_frame=types.Image(
+                        image_bytes=end_bytes,
+                        mime_type=end_mime
+                    )
+                )
+            )
+            
+            # Warte auf Ergebnis
+            logger.info("Waiting for video generation (First Frame + Last Frame)...")
+            
+            max_wait = 300  # 5 Minuten für komplexere Animation
+            poll_interval = 5
+            waited = 0
+            
+            while waited < max_wait:
+                await asyncio.sleep(poll_interval)
+                waited += poll_interval
+                
+                fresh_op = self.client.operations.get(response)
+                logger.info(f"Polling... ({waited}s) done={fresh_op.done}")
+                
+                if fresh_op.done:
+                    if fresh_op.error:
+                        return VideoResult(
+                            success=False,
+                            error=str(fresh_op.error),
+                            model=model_name
+                        )
+                    response = fresh_op
+                    break
+            
+            # Video extrahieren
+            result = response.result if hasattr(response, 'result') else response
+            if result and hasattr(result, 'generated_videos') and result.generated_videos:
+                video = result.generated_videos[0]
+                
+                video_uri = None
+                if hasattr(video, 'video') and hasattr(video.video, 'uri'):
+                    video_uri = video.video.uri
+                
+                if not video_uri:
+                    return VideoResult(
+                        success=False,
+                        error="Could not extract video URI from response"
+                    )
+                
+                logger.info(f"Video URI: {video_uri}")
+                
+                # Video herunterladen
+                import httpx
+                download_url = f"{video_uri}&key={self.api_key}"
+                
+                async with httpx.AsyncClient() as http_client:
+                    download_response = await http_client.get(
+                        download_url,
+                        timeout=60,
+                        follow_redirects=True
+                    )
+                    
+                    if download_response.status_code != 200:
+                        return VideoResult(
+                            success=False,
+                            error=f"Video download failed: {download_response.status_code}"
+                        )
+                    
+                    video_data = download_response.content
+                
+                # Speichern
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                video_filename = f"hedwig_animated_{timestamp}.mp4"
+                video_path = self.output_dir / video_filename
+                
+                with open(video_path, "wb") as f:
+                    f.write(video_data)
+                
+                generation_time = int((time.time() - start_time) * 1000)
+                
+                logger.info(f"Video saved: {video_path} ({len(video_data)} bytes)")
+                
+                return VideoResult(
+                    success=True,
+                    video_path=str(video_path),
+                    duration_seconds=duration_seconds,
+                    model=model_name,
+                    generation_time_ms=generation_time
+                )
+            else:
+                return VideoResult(
+                    success=False,
+                    error="No video generated in response",
+                    model=model_name
+                )
+                
+        except Exception as e:
+            logger.error(f"Video generation (First+Last Frame) failed: {e}")
             return VideoResult(
                 success=False,
                 error=str(e),

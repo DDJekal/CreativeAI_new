@@ -44,14 +44,23 @@ class LayoutStyle:
 
 class VisualStyle:
     """Verfügbare visuelle Stile für Overlays - Klassisch und Modern"""
+    # Klassische Styles
     MINIMAL = "minimal"                 # Minimalistisch, clean
     MODERN = "modern"                   # Modern, professionell
     BOLD = "bold"                       # Großer, fetter Text
     ELEGANT = "elegant"                 # Elegant, sophisticated
     FRIENDLY = "friendly"               # Warm, einladend
     PROFESSIONAL = "professional"       # Business, seriös
-    CREATIVE = "creative"               # Kreativ, auffällig
     CLASSIC = "classic"                 # Zeitlos klassisch
+    
+    # Neue Fotografie-Styles (2025/2026 Trends)
+    CINEMATIC = "cinematic"             # Filmische Ästhetik, emotional
+    DOCUMENTARY = "documentary"         # Authentisch, photojournalistisch
+    EDITORIAL = "editorial"             # Magazine Premium, High-End
+    
+    # Neue Künstlerische Styles
+    SOFT_GRADIENT = "soft_gradient"     # Pastel Gradients, Wellness
+    CLAY_RENDER = "clay_render"         # 3D Clay/Pixar Style
 
 
 # Layout-Stile mit Prompt-Beschreibungen
@@ -152,107 +161,195 @@ TEXT LAYOUT: SPLIT (HERO STYLE)
 VISUAL_STYLE_PROMPTS = {
     VisualStyle.MINIMAL: """
 VISUAL STYLE: MINIMALISTISCH CLEAN
-- Reduziertes, aufgeräumtes Design
-- Viel Weißraum (breathing room)
-- Klare, serifenlose Schrift
-- Dezente Akzentfarbe aus CI
-- Keine Hintergrundboxen oder Container
-- Text wirkt direkt im/auf Bild
-- Zurückhaltende Schriftgrößen
-- Fokus auf Lesbarkeit und Eleganz
-- Subtile Schatten für Kontrast wenn nötig
-- Zeitlos, professionell, hochwertig
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (60%): No containers, text floats directly on image with drop shadow only
+- SELECTIVE (30%): Only CTA button and location badge have containers (primary CI color)
+- BOXED (10%): Minimal containers using primary CI color at 10-15% opacity
+
+Typography: Clean sans-serif, generous letter-spacing
+Colors: Muted CI accents, focus on photographic content
+Layout: Generous negative space, breathing room around elements
+Mood: Timeless, professional, premium quality
 """,
     VisualStyle.MODERN: """
 VISUAL STYLE: MODERN PROFESSIONELL
-- Klare geometrische Formen
-- Dezente semi-transparente Hintergrundboxen (ca. 80-90% Opazität)
-- Moderne Sans-Serif Typografie
-- CI-Farben als Akzente (Balken, Unterstriche, Icons)
-- Ausbalancierte Hierarchie (groß → mittel → klein)
-- Professionell aber nicht steif
-- Subtile Schatten und Tiefe
-- Gut strukturiert, leicht scanbar
-- Trust-Building durch Klarheit
-- LinkedIn/Business-Ad-Look
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (40%): Clean text overlays with gradient fade behind if needed
+- SELECTIVE (45%): Containers using secondary CI color at 20% opacity for benefits
+- BOXED (15%): Geometric containers using primary CI color with subtle shadows
+
+Typography: Modern sans-serif, clear hierarchy
+Colors: CI colors as accents (bars, underlines, icons)
+Layout: Structured, balanced, easy to scan
+Mood: Professional but not stiff, LinkedIn/Business aesthetic
 """,
     VisualStyle.BOLD: """
 VISUAL STYLE: FETT UND AUSSAGEKRÄFTIG
-- Große, fette Headlines (70-90pt)
-- High-Contrast: Dunkler Text auf hellem BG oder umgekehrt
-- Kräftige CI-Farben
-- Mutiger Einsatz von Typografie als Gestaltungselement
-- Weniger Text, mehr Impact
-- CTA prominent und farbig hinterlegt
-- Selbstbewusst, auffällig
-- Für Aufmerksamkeit in Social Feeds
-- Plakativer Stil
-- Statement-Making
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (50%): Large bold text directly on image, high contrast
+- SELECTIVE (30%): Headline in primary CI color container for maximum impact
+- BOXED (20%): Strong color blocks using primary and accent CI colors
+
+Typography: Large bold headlines (70-90pt), confident
+Colors: Vibrant CI colors, high contrast combinations
+Layout: Less text, more impact, placard style
+Mood: Confident, attention-grabbing, statement-making
 """,
     VisualStyle.ELEGANT: """
 VISUAL STYLE: ELEGANT SOPHISTICATED
-- Serifenschrift oder elegante Sans-Serif
-- Feine Linien und dezente Rahmen
-- Gedämpfte, edle Farbpalette (Dunkelblau, Gold, Weiß)
-- Großzügiger Letter-Spacing
-- Symmetrische oder zentrierte Komposition
-- Luxuriöse Anmutung
-- Premium-Feeling
-- Subtile Veredelungseffekte (feiner Goldton)
-- Hochwertig, vertrauenswürdig
-- Geeignet für gehobene Positionen
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (50%): Refined text with subtle primary CI color accents
+- SELECTIVE (35%): Fine borders and minimal containers using muted CI colors
+- BOXED (15%): Elegant frames using primary CI color at low opacity
+
+Typography: Serif or elegant sans-serif, generous letter-spacing
+Colors: Muted sophisticated palette using CI colors elegantly
+Layout: Symmetrical or centered, premium composition
+Mood: Luxurious, trustworthy, high-end positioning
 """,
     VisualStyle.FRIENDLY: """
 VISUAL STYLE: WARM UND EINLADEND
-- Weiche Formen, abgerundete Ecken
-- Warme Farben (Orange, Gelb, Hellblau als Akzente)
-- Freundliche, lesbare Schrift
-- Lockere Anordnung, nicht zu steif
-- Lächelnde Gesichter im Motiv
-- Einladende, persönliche Sprache
-- Leichte Verspieltheit erlaubt
-- Menschlich, zugänglich
-- Team-Feeling
-- "Wir freuen uns auf dich"-Vibe
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (45%): Warm overlays with soft shadows
+- SELECTIVE (40%): Rounded containers using warm accent CI color
+- BOXED (15%): Soft rounded boxes using secondary CI color at 20% opacity
+
+Typography: Friendly readable fonts, approachable
+Colors: Warm accents from CI palette
+Layout: Relaxed arrangement, not too rigid
+Mood: Human, accessible, team-feeling, welcoming
 """,
     VisualStyle.PROFESSIONAL: """
 VISUAL STYLE: BUSINESS SERIÖS
-- Klare, konservative Typografie
-- Dunkle, vertrauenswürdige Farben (Navy, Dunkelgrau)
-- Akkurate Ausrichtung und Grid
-- Keine Experimente
-- Klassische Hierarchie (Logo oben, CTA unten)
-- Solide Hintergrundboxen (weiß oder CI-Farbe)
-- Formell, etabliert
-- Corporate-Charakter
-- Vertrauenswürdig für konservative Branchen
-- Ernst, kompetent
-""",
-    VisualStyle.CREATIVE: """
-VISUAL STYLE: KREATIV AUFFÄLLIG
-- Unkonventionelle Layouts (schräge Elemente, Asymmetrie)
-- Lebhafte Farbkombinationen
-- Mix aus Schriftgrößen und -gewichten
-- Grafische Elemente (Pfeile, Formen, Icons)
-- Dynamische Komposition
-- Aufmerksamkeitsstark
-- Nicht zu Business, sondern frisch
-- Für kreative Branchen oder junge Zielgruppen
-- Instagram-Ready
-- Energetisch, jung
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (20%): Conservative overlay approach
+- SELECTIVE (35%): Classical hierarchy with selective boxing using secondary CI color
+- BOXED (45%): Solid professional containers using primary CI color at 25-35% opacity
+
+Typography: Conservative, clear fonts
+Colors: Dark trustworthy tones from CI palette
+Layout: Accurate alignment, grid-based, no experiments
+Mood: Formal, established, corporate, competent
 """,
     VisualStyle.CLASSIC: """
 VISUAL STYLE: ZEITLOS KLASSISCH
-- Bewährte Gestaltungsprinzipien
-- Klare Drittel-Regel
-- Klassische Schriften (Garamond, Helvetica-Style)
-- Dezente CI-Farben
-- Ausgewogene, harmonische Komposition
-- Nichts Trendiges, immer aktuell
-- Konservativ aber modern genug
-- Universell einsetzbar
-- Sicher, verlässlich
-- "Das funktioniert immer"-Stil
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (35%): Timeless overlay approach
+- SELECTIVE (40%): Balanced mix using muted CI colors following thirds rule
+- BOXED (25%): Classical balanced containers using primary CI color at 15-20% opacity
+
+Typography: Classic fonts (Garamond, Helvetica style)
+Colors: Muted CI colors, nothing trendy
+Layout: Balanced composition, proven principles
+Mood: Timeless, reliable, universally applicable
+""",
+    
+    # ========================================
+    # NEUE FOTOGRAFIE-STYLES (2025/2026 Trends)
+    # ========================================
+    
+    VisualStyle.CINEMATIC: """
+VISUAL STYLE: CINEMATIC PHOTOGRAPHY
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (80%): No containers, cinematic text treatment with subtle drop shadow
+- SELECTIVE (15%): Dark gradient using primary CI color (soft fade, not hard box)
+- BOXED (5%): Letterbox bars using primary CI color at 40% opacity
+
+Photography Style:
+- Anamorphic lens aesthetic, shallow depth of field (bokeh background)
+- Golden hour natural light, soft rim lighting from behind
+- Teal shadows, warm orange highlights, slightly desaturated color grade
+- Film grain texture, premium editorial quality
+- Widescreen cinematic composition, emotional storytelling
+
+Typography: Bold weights, cinematic movie poster style
+Mood: Emotional, premium, Netflix/HBO production value
+""",
+    VisualStyle.DOCUMENTARY: """
+VISUAL STYLE: DOCUMENTARY REALISM
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (85%): Raw authentic text, minimal intervention, drop shadow only
+- SELECTIVE (12%): Subtle text background only where absolutely needed
+- BOXED (3%): Almost never, breaks authenticity
+
+Photography Style:
+- Photojournalism aesthetic, candid authentic moments
+- Natural light only, unposed genuine interactions
+- Leica/reportage style, real workplace environment
+- Slight motion blur for authenticity, human imperfections visible
+- Documentary storytelling, editorial quality
+
+Typography: Simple clear fonts, non-intrusive
+Mood: Authentic, genuine, unscripted, trustworthy
+""",
+    VisualStyle.EDITORIAL: """
+VISUAL STYLE: MAGAZINE EDITORIAL
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (70%): Premium magazine layout, sophisticated overlays
+- SELECTIVE (25%): Refined minimal containers using secondary CI color at 15% opacity
+- BOXED (5%): Editorial-style info boxes using primary CI color
+
+Photography Style:
+- Controlled studio lighting, three-point setup
+- Hasselblad medium format aesthetic, tack-sharp focus
+- Fashion-forward composition, aspirational positioning
+- Vogue/Kinfolk/Monocle editorial style
+- Professional color grading, premium quality signals
+
+Typography: Editorial fonts, sophisticated hierarchy
+Mood: High-end, aspirational, premium employer brand
+""",
+    
+    # ========================================
+    # NEUE KÜNSTLERISCHE STYLES
+    # ========================================
+    
+    VisualStyle.SOFT_GRADIENT: """
+VISUAL STYLE: SOFT GRADIENT PASTELS
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (75%): Text floats on gradients, no additional containers
+- SELECTIVE (20%): Soft gradient boxes using complementary CI colors at 25% opacity
+- BOXED (5%): Pastel containers using primary CI color with soft edges
+
+Artistic Style:
+- Smooth color transitions: use CI colors in soft gradient blends
+- Diffused natural light feeling, dreamy soft focus
+- Gentle abstract forms, caring healthcare environment
+- Instagram wellness aesthetic, soothing color palette
+- Peaceful, approachable, healing vibes
+
+Typography: Soft rounded fonts, gentle weights
+Mood: Calming, wellness, non-threatening, warm care
+""",
+    VisualStyle.CLAY_RENDER: """
+VISUAL STYLE: 3D CLAY RENDER
+
+CONTAINER STRATEGY (AI chooses randomly):
+- FULL BLEED (70%): Text overlays on 3D forms, integrated naturally
+- SELECTIVE (25%): Clay-textured containers using primary CI color in matte finish
+- BOXED (5%): Rounded 3D boxes using secondary CI color with soft shadows
+
+Artistic Style:
+- 3D clay render, soft rounded tactile forms
+- Matte plasticine texture, sculptural feeling
+- Use CI color palette in warm matte tones
+- Studio lighting with soft shadows
+- Pixar-adjacent aesthetic, friendly sophisticated vibe
+- Smooth rounded shapes, inviting tactile quality
+
+Typography: Rounded friendly fonts, playful but professional
+Mood: Modern, friendly, approachable, contemporary warmth
 """,
 }
 
@@ -698,6 +795,7 @@ Generate a 1024x1024px professional recruiting motif image.
         secondary_color: str = "#C8D9E8",
         accent_color: str = "#FFA726",
         background_color: str = "#FFFFFF",
+        font_family: str = "Inter",      # NEU: Brand Font Family
         model: Optional[Literal["fast", "pro"]] = None,
         designer_type: Literal["job_focus", "lifestyle", "artistic", "location"] = "job_focus",
         visual_brief: Optional[VisualBrief] = None,
@@ -804,6 +902,21 @@ Background Color: {background_color} (Text container backgrounds, overlays)
 
 IMPORTANT: Use ALL FOUR colors to create a cohesive, branded design!
 
+=== TYPOGRAPHY (BRAND FONT) ===
+Font Family: {font_family}
+→ Use this exact font family for ALL text elements
+→ Apply appropriate font weights (Bold for headlines, Regular/Medium for body)
+→ Maintain consistent font styling throughout the design
+
+=== CONTAINER & BACKGROUND STYLING ===
+When using containers/backgrounds for text elements:
+→ PRIMARY containers: Use {primary_color} at 15-25% opacity
+→ SECONDARY containers: Use {secondary_color} at 10-20% opacity  
+→ ACCENT containers: Use {accent_color} at 20-30% opacity for CTA button
+→ AVOID generic white/gray milky containers - always use brand colors
+→ All containers maintain CI consistency while ensuring text readability
+→ Use simple rounded rectangles (8-16px radius) - NO decorative edges
+
 📍 LOCATION TAG:
    Text: "📍 {location}" 
    Color: {accent_color}
@@ -855,9 +968,12 @@ DEFAULT TEXT RENDERING:
 Only the CTA button should have a visible container/background.
 All other text (headline, subline, benefits) must float directly on the image!
 
-⚠️ LAYOUT STYLE PRIORITY: The layout style (organic/geometric/wavy/rounded/angular/layered) 
-is a KEY differentiator. Make it OBVIOUS and EXTREME - don't be subtle!
-If style says "wavy", ALL borders must visibly wave. If "angular", NO vertical/horizontal lines!
+⚠️ CONTAINER STYLING RULES:
+- Use CLEAN, SIMPLE rectangular containers - NO decorative edges
+- NO wavy/scalloped/zigzag/stamp-like borders
+- Prefer rounded corners (8-16px border-radius) for modern feel
+- Keep container styling minimal and professional
+- Containers should enhance readability, not distract
 
 ⚠️ FINAL CHECKLIST - VERIFY BEFORE GENERATING:
 ✓ Count: Is there only ONE main subject? (not 2, not 3, just ONE)
@@ -913,9 +1029,9 @@ The final image should look like a professional Instagram/Social Media recruitin
             {"layout": LayoutStyle.LEFT, "visual": VisualStyle.PROFESSIONAL, "name": "Professional Left"},
             {"layout": LayoutStyle.SPLIT, "visual": VisualStyle.PROFESSIONAL, "name": "Professional Split"},
             
-            # Creative Combinations
-            {"layout": LayoutStyle.SPLIT, "visual": VisualStyle.CREATIVE, "name": "Creative Split"},
-            {"layout": LayoutStyle.LEFT, "visual": VisualStyle.CREATIVE, "name": "Creative Left"},
+            # Cinematic Combinations (ersetzt Creative)
+            {"layout": LayoutStyle.SPLIT, "visual": VisualStyle.CINEMATIC, "name": "Cinematic Split"},
+            {"layout": LayoutStyle.LEFT, "visual": VisualStyle.CINEMATIC, "name": "Cinematic Left"},
             
             # Classic Combinations
             {"layout": LayoutStyle.CENTER, "visual": VisualStyle.CLASSIC, "name": "Classic Center"},
@@ -1096,17 +1212,38 @@ The final image should look like a professional Instagram/Social Media recruitin
         
         from src.config.motif_scenes import get_random_scene
         
+        # Mapping: designer_type → content_type für Scene Pool
+        type_mapping = {
+            "professional": "hero_shot",
+            "artistic": "artistic",
+            "team": "team_shot",
+            "lifestyle": "lifestyle",
+            "location": "location",  # NEU: Atmosphärische Ortsaufnahmen
+            "future": "future",
+            "career": "future",
+            "job_focus": "hero_shot"
+        }
+        
+        # Bestimme Content-Type basierend auf Designer-Type
+        content_type = type_mapping.get(designer_type, designer_type)
+        
         # Hole eine zufällige Szene für den Content-Typ
-        scene = get_random_scene(designer_type)
+        scene = get_random_scene(content_type)
         
         # Job-Title bereinigen
         job_clean = job_title.split('(')[0].strip()
+        
+        # Für location: Erweitere Prompt mit spezifischem Ort
+        if designer_type == "location" and location:
+            location_context = f"\n⚠️ SPECIFIC LOCATION TO SHOW: {location}\n- Research and show distinctive features of this specific city/region\n- Include recognizable landmarks or architectural character if possible"
+        else:
+            location_context = ""
         
         # Baue den kompletten Szenen-Prompt mit Anti-Dopplung
         return f"""=== SCENE: {scene.name.upper()} ({designer_type.upper()}) ===
 MOTIF STYLE: {scene.name}
 
-{scene.prompt}
+{scene.prompt}{location_context}
 
 ⚠️ CRITICAL - SINGLE UNIFIED COMPOSITION:
 - ONE main subject/person only - NO duplicates!

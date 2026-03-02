@@ -374,6 +374,34 @@ LIFESTYLE_SCENES: List[SceneVariant] = [
 
 LOCATION_SCENES: List[SceneVariant] = [
     SceneVariant(
+        id="atmospheric_cityscape_empty",
+        name="Atmospheric Cityscape - Empty & Cinematic",
+        prompt="""Beautiful cityscape establishing shot, absolutely NO people visible
+Atmospheric location photography showing city/region identity
+Golden hour or blue hour lighting, emotional cinematic mood
+Architectural beauty, landmarks or distinctive buildings if relevant
+Documentary/travel photography style, wide establishing shot
+Empty but inviting, peaceful and aspirational urban scene
+Shows quality of location and lifestyle opportunity
+River, bridges, or urban landscape elements for depth
+NO people, NO crowds - pure location atmosphere""",
+        camera_settings="Sony A7RV 24mm f/2.8, wide angle, balanced exposure, tripod stable",
+        mood_tags=["atmospheric", "cinematic", "empty", "aspirational", "regional"]
+    ),
+    SceneVariant(
+        id="workplace_exterior_architecture",
+        name="Workplace Building - Architectural",
+        prompt="""Modern workplace building exterior architecture, NO people
+Professional architectural photography, clean lines
+Inviting entrance, well-maintained modern facility
+Natural daylight, shows quality and investment
+Establishing shot documentary style, slightly low angle
+Empty but welcoming professional atmosphere
+Shows employer quality through building quality""",
+        camera_settings="Canon EOS R5 24mm TS-E tilt-shift, architectural photography, corrected lines",
+        mood_tags=["professional", "quality", "modern", "inviting"]
+    ),
+    SceneVariant(
         id="skyline_golden",
         name="Stadtpanorama Golden Hour",
         prompt="""City skyline at golden hour
